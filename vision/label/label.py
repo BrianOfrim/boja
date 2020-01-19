@@ -9,14 +9,14 @@ from absl import app, flags
 import numpy as np
 import matplotlib.pyplot as plt
 
+from .gui import GUI, AnnotatedImage, Category
+
 from .._s3_utils import (
     s3_upload_files,
     s3_bucket_exists,
     s3_get_object_names_from_dir,
     s3_download_files,
 )
-
-from .gui import GUI, AnnotatedImage, Category
 
 IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"

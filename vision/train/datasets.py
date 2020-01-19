@@ -57,7 +57,7 @@ class BojaDataSet(object):
         labels = [self.labels.index(b.label) for b in annotation_boxes]
         labels = torch.as_tensor(labels, dtype=torch.int64)
 
-        image_id = torch.tensor([idx])
+        image_id = torch.tensor([idx])  # pylint: disable=not-callable
 
         area = [b.get_area() for b in annotation_boxes]
         area = torch.as_tensor(area, dtype=torch.float32)

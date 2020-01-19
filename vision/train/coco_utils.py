@@ -10,7 +10,7 @@ import torchvision
 from pycocotools import mask as coco_mask
 from pycocotools.coco import COCO
 
-import transforms as T
+from .transforms import Compose
 
 
 class FilterAndRemapCocoCategories(object):
@@ -53,7 +53,7 @@ class ConvertCocoPolysToMask(object):
         w, h = image.size
 
         image_id = target["image_id"]
-        image_id = torch.tensor([image_id])
+        image_id = torch.tensor([image_id])  # pylint: disable=not-callable
 
         anno = target["annotations"]
 
@@ -67,7 +67,9 @@ class ConvertCocoPolysToMask(object):
         boxes[:, 1::2].clamp_(min=0, max=h)
 
         classes = [obj["category_id"] for obj in anno]
-        classes = torch.tensor(classes, dtype=torch.int64)
+        classes = torch.tensor(  # pylint: disable=not-callable
+            classes, dtype=torch.int64
+        )
 
         segmentations = [obj["segmentation"] for obj in anno]
         masks = convert_coco_poly_to_mask(segmentations, h, w)
@@ -96,8 +98,12 @@ class ConvertCocoPolysToMask(object):
             target["keypoints"] = keypoints
 
         # for conversion to coco api
-        area = torch.tensor([obj["area"] for obj in anno])
-        iscrowd = torch.tensor([obj["iscrowd"] for obj in anno])
+        area = torch.tensor(  # pylint: disable=not-callable
+            [obj["area"] for obj in anno]
+        )
+        iscrowd = torch.tensor(  # pylint: disable=not-callable
+            [obj["iscrowd"] for obj in anno]
+        )
         target["area"] = area
         target["iscrowd"] = iscrowd
 
@@ -239,7 +245,7 @@ def get_coco(root, image_set, transforms, mode="instances"):
 
     if transforms is not None:
         t.append(transforms)
-    transforms = T.Compose(t)
+    transforms = Compose(t)
 
     img_folder, ann_file = PATHS[image_set]
     img_folder = os.path.join(root, img_folder)

@@ -27,7 +27,7 @@ MANIFEST_FILE_TYPE = "txt"
 
 flags.DEFINE_string(
     "label_file_path",
-    "../data/labels.txt",
+    os.path.join(os.path.expanduser("~"), "boja", "data", "labels.txt"),
     "Path to the file containing the category labels.",
 )
 

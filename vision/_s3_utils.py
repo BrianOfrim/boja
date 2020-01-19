@@ -87,7 +87,7 @@ def s3_download_files(
                 )
             except botocore.exceptions.ClientError as e:
                 print(e)
-       else:
+        else:
             if notify_if_exists:
                 print(
                     "File already downloaded: %s:%s, %i/%i"

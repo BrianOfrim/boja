@@ -20,4 +20,4 @@ dist
 pip-wheel-metadata/*
 
 #Application specific data
-images
+data

@@ -35,12 +35,14 @@ flags.DEFINE_string(
 )
 
 flags.DEFINE_string(
-    "local_data_dir", "../data", "Local directory of the image files to label."
+    "local_data_dir",
+    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    "Local data directory.",
 )
 
 flags.DEFINE_string(
     "label_file_path",
-    "../data/labels.txt",
+    os.path.join(os.path.expanduser("~"), "oddata", "data", "labels.txt"),
     "Path to the file containing the category labels.",
 )
 

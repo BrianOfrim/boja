@@ -108,8 +108,8 @@ def s3_upload_files(
 ) -> None:
     s3 = boto3.client("s3")
     for file_index, file_to_send in enumerate(files_to_send):
-        s3_destination_object_path = os.path.join(
-            s3_destination_object_dir, os.path.basename(file_to_send)
+        s3_destination_object_path = "/".join(
+            [s3_destination_object_dir, os.path.basename(file_to_send)]
         )
         try:
             if file_exists(bucket_name, s3_destination_object_path):

@@ -40,13 +40,15 @@ MODEL_STATE_FILE_NAME = "modelState.pt"
 INVALID_ANNOTATION_FILE_IDENTIFIER = "invalid"
 
 flags.DEFINE_string(
-    "label_file_path",
-    "../data/labels.txt",
-    "Path to the file containing the category labels.",
+    "local_data_dir",
+    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    "Local data directory.",
 )
 
 flags.DEFINE_string(
-    "local_data_dir", "../data", "Local directory of the image files to label."
+    "label_file_path",
+    os.path.join(os.path.expanduser("~"), "oddata", "data", "labels.txt"),
+    "Path to the file containing the category labels.",
 )
 
 flags.DEFINE_string(

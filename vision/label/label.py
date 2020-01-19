@@ -1,5 +1,4 @@
 import os
-import pathlib
 import re
 import time
 from typing import List
@@ -22,6 +21,10 @@ IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"
 MANIFEST_DIR_NAME = "manifests"
 
+IMAGE_FILE_TYPE = "jpg"
+ANNOTATION_FILE_TYPE = "xml"
+MANIFEST_FILE_TYPE = "txt"
+
 flags.DEFINE_string(
     "label_file_path",
     "../data/labels.txt",
@@ -29,7 +32,9 @@ flags.DEFINE_string(
 )
 
 flags.DEFINE_string(
-    "local_data_dir", "../data", "Local directory of the image files to label."
+    "local_data_dir",
+    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    "Local directory of the data to label.",
 )
 
 flags.DEFINE_string(
@@ -37,13 +42,6 @@ flags.DEFINE_string(
 )
 
 flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
-
-
-flags.DEFINE_string("image_file_type", "jpg", "File type of the image files")
-
-flags.DEFINE_string("annotation_file_type", "xml", "File type of the annotation files")
-
-flags.DEFINE_string("manifest_file_type", "txt", "File type of the manifest files")
 
 
 def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
@@ -69,7 +67,7 @@ def get_newest_manifest_path() -> str:
         os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME)
     )
     manifest_files = [
-        f for f in manifest_files if f.lower().endswith(flags.FLAGS.manifest_file_type)
+        f for f in manifest_files if f.lower().endswith(MANIFEST_FILE_TYPE)
     ]
     if len(manifest_files) == 0:
         return None
@@ -91,7 +89,7 @@ def save_outputs(
     new_manifest_path = os.path.join(
         flags.FLAGS.local_data_dir,
         MANIFEST_DIR_NAME,
-        "%i-manifest.%s" % (start_time, flags.FLAGS.manifest_file_type),
+        "%i-manifest.%s" % (start_time, MANIFEST_FILE_TYPE),
     )
     if previous_manifest_path is not None:
         shutil.copyfile(previous_manifest_path, new_manifest_path)
@@ -172,7 +170,7 @@ def main(unused_argv):
         s3_images = s3_get_object_names_from_dir(
             flags.FLAGS.s3_bucket_name,
             flags.FLAGS.s3_data_dir + "/" + IMAGE_DIR_NAME,
-            flags.FLAGS.image_file_type,
+            IMAGE_FILE_TYPE,
         )
         s3_download_files(
             flags.FLAGS.s3_bucket_name,
@@ -184,7 +182,7 @@ def main(unused_argv):
         s3_annotations = s3_get_object_names_from_dir(
             flags.FLAGS.s3_bucket_name,
             flags.FLAGS.s3_data_dir + "/" + ANNOTATION_DIR_NAME,
-            flags.FLAGS.annotation_file_type,
+            ANNOTATION_FILE_TYPE,
         )
 
         s3_download_files(
@@ -237,7 +235,7 @@ def main(unused_argv):
         os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME)
     ):
         if (
-            image_file.endswith(flags.FLAGS.image_file_type)
+            image_file.endswith(IMAGE_FILE_TYPE)
             and os.path.basename(image_file) not in manifest_images
         ):
             gui.add_image(

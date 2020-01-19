@@ -15,6 +15,9 @@ from .._s3_utils import s3_upload_files, s3_bucket_exists
 
 WINDOW_NAME = "Capture"
 
+IMAGE_DIR_NAME = "images"
+IMAGE_FILE_TYPE = "jpg"
+
 flags.DEFINE_string(
     "gentl_producer_path",
     "/opt/mvIMPACT_Acquire/lib/x86_64/mvGenTLProducer.cti",
@@ -27,14 +30,15 @@ flags.DEFINE_integer(
 
 flags.DEFINE_integer("frame_rate", 30, "Frame rate to acquire images at.")
 
-flags.DEFINE_string("image_dir", "../images", "The directory to save images to.")
-
-flags.DEFINE_string("image_file_type", "jpg", "File type to save images as.")
-
+flags.DEFINE_string(
+    "local_data_dir",
+    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    "Local parent directory of the image directory to store images.",
+)
 
 flags.DEFINE_string("s3_bucket_name", None, "S3 bucket to send images to.")
 
-flags.DEFINE_string("s3_image_dir", "data/images", "Prefix of the s3 image objects.")
+flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
 
 
 class RGB8Image:
@@ -184,15 +188,18 @@ def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
             if image is None:
                 break
             file_path = os.path.join(
-                flags.FLAGS.image_dir,
-                "%i.%s" % (time.time(), flags.FLAGS.image_file_type),
+                flags.FLAGS.local_data_dir,
+                IMAGE_DIR_NAME,
+                "%i.%s" % (time.time(), IMAGE_FILE_TYPE),
             )
             save_successfull = image.save(file_path)
             print("Image saved at: %s" % file_path)
 
             if use_s3 and save_successfull:
                 s3_upload_files(
-                    flags.FLAGS.s3_bucket_name, [file_path], flags.FLAGS.s3_image_dir,
+                    flags.FLAGS.s3_bucket_name,
+                    [file_path],
+                    "/".join([flags.FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
                 )
     finally:
         print("Saving complete.")
@@ -232,7 +239,7 @@ def create_output_dir(dir_name) -> bool:
 
 def main(unused_argv):
 
-    if not create_output_dir(flags.FLAGS.image_dir):
+    if not create_output_dir(os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME)):
         print("Cannot create output annotations directory.")
         return
 

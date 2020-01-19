@@ -7,17 +7,11 @@ from typing import List
 import re
 
 from absl import app, flags
-from PIL import Image
 import torch
-import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from torchvision.models.detection import FasterRCNN
-from torchvision.models.detection.rpn import AnchorGenerator
 
-# import transforms as T
-import pascal_voc_parser
-
+from .datasets import BojaDataSet
 from .engine import train_one_epoch, evaluate
+from .._models import get_fasterrcnn_resnet50, get_fasterrcnn_mobilenet_v2
 from .._s3_utils import (
     s3_bucket_exists,
     s3_upload_files,
@@ -60,106 +54,6 @@ flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
 # Hyperparameters
 
 flags.DEFINE_integer("num_epochs", 10, "The number of epochs to train the model for.")
-
-
-class ODDataSet(object):
-    def __init__(self, data_root, transforms, labels, manifest_file_path: str):
-
-        self.data_root = data_root
-        self.transforms = transforms
-
-        self.labels = labels
-        manifest_items = [
-            item.strip() for item in open(manifest_file_path).read().splitlines()
-        ]
-        # Filter out Invalid images
-        manifest_items = [
-            item
-            for item in manifest_items
-            if item.split(",")[1].lower() != INVALID_ANNOTATION_FILE_IDENTIFIER
-        ]
-
-        self.images = [
-            os.path.join(self.data_root, IMAGE_DIR_NAME, item.split(",")[0])
-            for item in manifest_items
-        ]
-        self.annotations = [
-            os.path.join(self.data_root, ANNOTATION_DIR_NAME, item.split(",")[1])
-            for item in manifest_items
-        ]
-
-    def __getitem__(self, idx):
-        # load images ad masks
-        img_path = os.path.join(self.data_root, IMAGE_DIR_NAME, self.images[idx])
-        img = Image.open(img_path).convert("RGB")
-
-        annotation_path = os.path.join(
-            self.data_root, ANNOTATION_DIR_NAME, self.annotations[idx]
-        )
-        _, annotation_boxes = pascal_voc_parser.read_content(annotation_path)
-
-        num_objs = len(annotation_boxes)
-        boxes = [[b.xmin, b.ymin, b.xmax, b.ymax] for b in annotation_boxes]
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        # there is only one class
-
-        labels = [self.labels.index(b.label) for b in annotation_boxes]
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-
-        image_id = torch.tensor([idx])
-
-        area = [b.get_area() for b in annotation_boxes]
-        area = torch.as_tensor(area, dtype=torch.float32)
-
-        # suppose all instances are not crowd
-        iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
-
-        target = {}
-        target["boxes"] = boxes
-        target["labels"] = labels
-        target["image_id"] = image_id
-        target["area"] = area
-        target["iscrowd"] = iscrowd
-
-        if self.transforms is not None:
-            img, target = self.transforms(img, target)
-
-        return img, target
-
-    def __len__(self):
-        return len(self.images)
-
-
-def get_model_instance_detection(num_classes):
-    # load a model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-    return model
-
-
-def get_model_instance_detection_mobilenet(num_classes):
-
-    backbone = torchvision.models.mobilenet_v2(pretrained=True).features
-    backbone.out_channels = 1280
-
-    anchor_generator = AnchorGenerator(
-        sizes=((32, 64, 128, 256, 512),), aspect_ratios=((0.5, 1.0, 2.0),)
-    )
-    roi_pooler = torchvision.ops.MultiScaleRoIAlign(
-        featmap_names=["0"], output_size=7, sampling_ratio=2
-    )
-
-    model = FasterRCNN(
-        backbone,
-        num_classes=num_classes,
-        rpn_anchor_generator=anchor_generator,
-        box_roi_pool=roi_pooler,
-    )
-    return model
 
 
 def get_transform(train):
@@ -308,17 +202,21 @@ def main(unused_argv):
 
     num_classes = len(labels)
     # use our dataset and defined transformations
-    dataset = ODDataSet(
-        flags.FLAGS.local_data_dir,
+
+    dataset = BojaDataSet(
+        os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME),
+        os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+        newest_manifest_file,
         get_transform(train=True),
         labels,
-        newest_manifest_file,
     )
-    dataset_test = ODDataSet(
-        flags.FLAGS.local_data_dir,
+
+    dataset_test = BojaDataSet(
+        os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME),
+        os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+        newest_manifest_file,
         get_transform(train=False),
         labels,
-        newest_manifest_file,
     )
 
     # split the dataset in train and test set
@@ -349,7 +247,7 @@ def main(unused_argv):
     )
 
     # get the model using our helper function
-    model = get_model_instance_detection_mobilenet(num_classes)
+    model = get_fasterrcnn_resnet50(num_classes)
 
     # move model to the right device
     model.to(device)

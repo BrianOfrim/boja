@@ -10,15 +10,14 @@ from cv2 import cv2
 from genicam.gentl import TimeoutException
 from harvesters.core import Harvester
 
-from PIL import Image
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import torch
-import torchvision
 import torchvision.transforms.functional as F
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+
+from .._models import get_fasterrcnn_resnet50, get_fasterrcnn_mobilenet_v2
 
 matplotlib.use("TKAgg")
 
@@ -114,17 +113,6 @@ def get_newest_saved_model_path(model_dir_path: str) -> str:
     return model_file_path
 
 
-def get_model_instance_detection(num_classes):
-    # load a model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-    return model
-
-
 class RGB8Image:
     def __init__(
         self, width: int, height: int, data_format: str, image_data: np.ndarray
@@ -215,7 +203,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
         )
 
         # get the model using our helper function
-        model = get_model_instance_detection(len(labels))
+        model = get_fasterrcnn_resnet50(len(labels))
 
         print("Loading model state from: %s" % saved_model_file_path)
 

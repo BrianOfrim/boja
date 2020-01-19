@@ -16,7 +16,7 @@ from .._s3_utils import (
     s3_download_files,
 )
 
-from gui import GUI, AnnotatedImage, Category
+from .gui import GUI, AnnotatedImage, Category
 
 IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"

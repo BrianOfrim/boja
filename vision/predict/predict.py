@@ -24,7 +24,6 @@ matplotlib.use("TKAgg")
 
 MODEL_STATE_ROOT_DIR = "modelState"
 MODEL_STATE_FILE_NAME = "modelState.pt"
-DISPLAY_WINDOW_NAME = "Live Stream"
 INFERENCE_WINDOW_NAME = "Inference"
 
 
@@ -36,13 +35,13 @@ flags.DEFINE_string(
 
 flags.DEFINE_string(
     "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    os.path.join(os.path.expanduser("~"), "boja", "data"),
     "Local data directory.",
 )
 
 flags.DEFINE_string(
     "label_file_path",
-    os.path.join(os.path.expanduser("~"), "oddata", "data", "labels.txt"),
+    os.path.join(os.path.expanduser("~"), "boja", "data", "labels.txt"),
     "Path to the file containing the category labels.",
 )
 
@@ -149,7 +148,7 @@ class RGB8Image:
         return self.image_data
 
     def _process_image(self, image_data, data_format, width, height) -> np.ndarray:
-        # Convert to BGR (on purpose) for matplot lib
+        # Convert to BGR (on purpose)
         if data_format == "Mono8":
             return cv2.cvtColor(image_data.reshape(height, width), cv2.COLOR_GRAY2BGR)
         elif data_format == "BayerRG8":

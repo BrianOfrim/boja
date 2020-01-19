@@ -32,7 +32,7 @@ flags.DEFINE_integer("frame_rate", 30, "Frame rate to acquire images at.")
 
 flags.DEFINE_string(
     "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    os.path.join(os.path.expanduser("~"), "boja", "data"),
     "Local parent directory of the image directory to store images.",
 )
 

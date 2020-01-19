@@ -70,14 +70,6 @@ def s3_download_files(
             destination_dir, os.path.basename(object_summary.key)
         )
         if not os.path.isfile(destination_file_path):
-            try:
-                s3_client.download_file(  # pylint: disable=no-member
-                    object_summary.bucket_name,
-                    object_summary.key,
-                    destination_file_path,
-                )
-            except botocore.exceptions.ClientError as e:
-                print(e)
             print(
                 "Downloading file from %s:%s, %i/%i"
                 % (
@@ -87,7 +79,15 @@ def s3_download_files(
                     len(object_summary_list),
                 )
             )
-        else:
+            try:
+                s3_client.download_file(  # pylint: disable=no-member
+                    object_summary.bucket_name,
+                    object_summary.key,
+                    destination_file_path,
+                )
+            except botocore.exceptions.ClientError as e:
+                print(e)
+       else:
             if notify_if_exists:
                 print(
                     "File already downloaded: %s:%s, %i/%i"

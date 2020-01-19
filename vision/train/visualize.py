@@ -35,13 +35,13 @@ INVALID_ANNOTATION_FILE_IDENTIFIER = "invalid"
 
 flags.DEFINE_string(
     "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    os.path.join(os.path.expanduser("~"), "boja", "data"),
     "Local data directory.",
 )
 
 flags.DEFINE_string(
     "label_file_path",
-    os.path.join(os.path.expanduser("~"), "oddata", "data", "labels.txt"),
+    os.path.join(os.path.expanduser("~"), "boja", "data", "labels.txt"),
     "Path to the file containing the category labels.",
 )
 

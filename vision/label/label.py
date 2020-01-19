@@ -33,7 +33,7 @@ flags.DEFINE_string(
 
 flags.DEFINE_string(
     "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "oddata", "data"),
+    os.path.join(os.path.expanduser("~"), "boja", "data"),
     "Local directory of the data to label.",
 )
 

@@ -1,0 +1,23 @@
+#########################################
+# Editor temporary/working/backup files #
+.#*
+.vscode/
+
+# Compiled source #
+###################
+*.py[ocd]
+
+# Python files #
+################
+# setup.py working directory
+build
+# setup.py dist directory
+dist
+# Egg metadata
+*.egg-info
+.eggs
+# wheel metadata
+pip-wheel-metadata/*
+
+#Application specific data
+images

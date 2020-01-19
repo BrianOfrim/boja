@@ -1,0 +1,12 @@
+absl-py
+boto3
+dataclasses
+genicam
+harvesters
+matplotlib
+numpy
+opencv-python
+pascal_voc_writer
+pillow==6.2.1 
+pycocotools
+torchvision>=0.5.*

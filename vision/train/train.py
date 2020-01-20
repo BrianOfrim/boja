@@ -23,12 +23,12 @@ from .train_utils import collate_fn
 IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"
 MANIFEST_DIR_NAME = "manifests"
-MODEL_STATE_ROOT_DIR = "modelState"
+MODEL_STATE_DIR_NAME = "modelstates"
 
 IMAGE_FILE_TYPE = "jpg"
 ANNOTATION_FILE_TYPE = "xml"
 MANIFEST_FILE_TYPE = "txt"
-MODEL_STATE_FILE_NAME = "modelState.pt"
+MODEL_STATE_FILE_TYPE = "pt"
 
 INVALID_ANNOTATION_FILE_IDENTIFIER = "invalid"
 
@@ -255,14 +255,15 @@ def main(unused_argv):
         # evaluate on the test dataset
         evaluate(model, data_loader_test, device=device)
 
-    model_state_dir = os.path.join(
-        flags.FLAGS.local_data_dir, MODEL_STATE_ROOT_DIR, str(start_time)
+    model_state_local_dir = os.path.join(
+        flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME
     )
-
     # Create model state directory if it does not exist yet
-    create_output_dir(model_state_dir)
+    create_output_dir(model_state_local_dir)
 
-    model_state_file_path = os.path.join(model_state_dir, MODEL_STATE_FILE_NAME)
+    model_state_file_path = os.path.join(
+        model_state_local_dir, "%s.%s" % (str(start_time), MODEL_STATE_FILE_TYPE)
+    )
 
     # Save the model state to a file
     torch.save(model.state_dict(), model_state_file_path)
@@ -274,7 +275,7 @@ def main(unused_argv):
         s3_upload_files(
             flags.FLAGS.s3_bucket_name,
             [model_state_file_path],
-            "/".join([flags.FLAGS.s3_data_dir, MODEL_STATE_ROOT_DIR, str(start_time)]),
+            "/".join([flags.FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
         )
 
     print("Training complete")

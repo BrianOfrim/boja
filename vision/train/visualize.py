@@ -20,12 +20,12 @@ matplotlib.use("TKAgg")
 IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"
 MANIFEST_DIR_NAME = "manifests"
-MODEL_STATE_ROOT_DIR = "modelState"
+MODEL_STATE_DIR_NAME = "modelstates"
 
 IMAGE_FILE_TYPE = "jpg"
 ANNOTATION_FILE_TYPE = "xml"
 MANIFEST_FILE_TYPE = "txt"
-MODEL_STATE_FILE_NAME = "modelState.pt"
+MODEL_STATE_FILE_TYPE = "pt"
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -69,37 +69,34 @@ def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
     return file_paths
 
 
-def int_string_sort(manifest_file) -> int:
-    match = re.match("[0-9]+", manifest_file)
+def int_string_sort(file_name) -> int:
+    match = re.match("[0-9]+", file_name)
     if not match:
         return 0
     return int(match[0])
 
 
-def get_newest_manifest_path(manifest_dir_path: str) -> str:
-    manifest_files = get_files_from_dir(manifest_dir_path)
-    manifest_files = [
-        f for f in manifest_files if f.lower().endswith(MANIFEST_FILE_TYPE)
-    ]
-    if len(manifest_files) == 0:
+def get_highest_numbered_file(dir_path: str, file_extention: str = None) -> str:
+    file_names = get_files_from_dir(dir_path)
+
+    if file_extention is not None:
+        file_names = [
+            file_name
+            for file_name in file_names
+            if file_name.lower().endswith(file_extention.lower())
+        ]
+    if len(file_names) == 0:
         return None
-    newest_manifest_file = sorted(manifest_files, key=int_string_sort, reverse=True)[0]
-    return os.path.join(
-        flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME, newest_manifest_file
-    )
+    highest_numbered_file = sorted(file_names, key=int_string_sort, reverse=True)[0]
+    return os.path.join(dir_path, highest_numbered_file)
+
+
+def get_newest_manifest_path(manifest_dir_path: str) -> str:
+    return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
 
 
 def get_newest_saved_model_path(model_dir_path: str) -> str:
-    _, model_storage_dirs, _ = next(os.walk(model_dir_path))
-    if len(model_storage_dirs) == 0:
-        return None
-    model_storage_dirs = sorted(model_storage_dirs, key=int_string_sort, reverse=True)
-    model_file_path = os.path.join(
-        model_dir_path, model_storage_dirs[0], MODEL_STATE_FILE_NAME
-    )
-    if not os.path.isfile(model_file_path):
-        return None
-    return model_file_path
+    return get_highest_numbered_file(model_dir_path, MODEL_STATE_FILE_TYPE)
 
 
 def draw_bboxes(
@@ -177,7 +174,7 @@ def main(unused_argv):
         flags.FLAGS.model_path
         if flags.FLAGS.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_ROOT_DIR)
+            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME)
         )
     )
 

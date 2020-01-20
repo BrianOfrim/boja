@@ -1,5 +1,6 @@
 import os
 from typing import List
+import re
 
 from absl import app, flags
 
@@ -13,18 +14,20 @@ from ._s3_utils import (
 IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"
 MANIFEST_DIR_NAME = "manifests"
-MODEL_STATE_ROOT_DIR = "modelState"
-
-DATA_SUB_DIRS = [
-    IMAGE_DIR_NAME,
-    ANNOTATION_DIR_NAME,
-    MANIFEST_DIR_NAME,
-    MODEL_STATE_ROOT_DIR,
-]
+MODEL_STATE_DIR_NAME = "modelstates"
 
 IMAGE_FILE_TYPE = "jpg"
 ANNOTATION_FILE_TYPE = "xml"
 MANIFEST_FILE_TYPE = "txt"
+MODEL_STATE_FILE_TYPE = "pt"
+
+DATA_SUB_DIRS_AND_TYPES = [
+    (IMAGE_DIR_NAME, IMAGE_FILE_TYPE),
+    (ANNOTATION_DIR_NAME, ANNOTATION_FILE_TYPE),
+    (MANIFEST_DIR_NAME, MANIFEST_FILE_TYPE),
+    (MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE),
+]
+
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -99,7 +102,7 @@ def main(unused_argv):
         print("Error creating local data directory %s" % flags.FLAGS.local_data_dir)
         return
     # create local data sub directories
-    for sub_data_dir in DATA_SUB_DIRS:
+    for sub_data_dir, _ in DATA_SUB_DIRS_AND_TYPES:
         if not create_output_dir(
             os.path.join(flags.FLAGS.local_data_dir, sub_data_dir)
         ):
@@ -124,32 +127,17 @@ def main(unused_argv):
 
     print("Bucket: %s exists and you have access to it" % flags.FLAGS.s3_bucket_name)
 
-    print("Syncing images between s3 and local")
-    sync_s3_and_local_dir(
-        flags.FLAGS.s3_bucket_name,
-        "/".join([flags.FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
-        os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME),
-        IMAGE_FILE_TYPE,
-    )
-
-    print("Syncing annotations between s3 and local")
-    sync_s3_and_local_dir(
-        flags.FLAGS.s3_bucket_name,
-        "/".join([flags.FLAGS.s3_data_dir, ANNOTATION_DIR_NAME]),
-        os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
-        ANNOTATION_FILE_TYPE,
-    )
-
-    print("Syncing manifests between s3 and local")
-    sync_s3_and_local_dir(
-        flags.FLAGS.s3_bucket_name,
-        "/".join([flags.FLAGS.s3_data_dir, MANIFEST_DIR_NAME]),
-        os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME),
-        MANIFEST_FILE_TYPE,
-    )
-
-    # TODO add getting models
-    print("Configuration complete.")
+    for sub_data_dir, file_type in DATA_SUB_DIRS_AND_TYPES:
+        print(
+            "Syncing files of type: %s from folder: %s between s3 and local"
+            % (sub_data_dir, file_type)
+        )
+        sync_s3_and_local_dir(
+            flags.FLAGS.s3_bucket_name,
+            "/".join([flags.FLAGS.s3_data_dir, sub_data_dir]),
+            os.path.join(flags.FLAGS.local_data_dir, sub_data_dir),
+            file_type,
+        )
 
 
 if __name__ == "__main__":

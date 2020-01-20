@@ -21,8 +21,8 @@ from .._models import get_fasterrcnn_resnet50, get_fasterrcnn_mobilenet_v2
 
 matplotlib.use("TKAgg")
 
-MODEL_STATE_ROOT_DIR = "modelState"
-MODEL_STATE_FILE_NAME = "modelState.pt"
+MODEL_STATE_DIR_NAME = "modelstates"
+MODEL_STATE_FILE_TYPE = "pt"
 INFERENCE_WINDOW_NAME = "Inference"
 
 
@@ -93,24 +93,41 @@ def draw_bboxes(
         )
 
 
-def int_string_sort(manifest_file) -> int:
-    match = re.match("[0-9]+", manifest_file)
+def int_string_sort(file_name) -> int:
+    match = re.match("[0-9]+", file_name)
     if not match:
         return 0
     return int(match[0])
 
 
+def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
+    if not os.path.isdir(dir_path):
+        return []
+    file_paths = [
+        f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))
+    ]
+    if file_type is not None:
+        file_paths = [f for f in file_paths if f.lower().endswith(file_type.lower())]
+    return file_paths
+
+
+def get_highest_numbered_file(dir_path: str, file_extention: str = None) -> str:
+    file_names = get_files_from_dir(dir_path)
+
+    if file_extention is not None:
+        file_names = [
+            file_name
+            for file_name in file_names
+            if file_name.lower().endswith(file_extention.lower())
+        ]
+    if len(file_names) == 0:
+        return None
+    highest_numbered_file = sorted(file_names, key=int_string_sort, reverse=True)[0]
+    return os.path.join(dir_path, highest_numbered_file)
+
+
 def get_newest_saved_model_path(model_dir_path: str) -> str:
-    _, model_storage_dirs, _ = next(os.walk(model_dir_path))
-    if len(model_storage_dirs) == 0:
-        return None
-    model_storage_dirs = sorted(model_storage_dirs, key=int_string_sort, reverse=True)
-    model_file_path = os.path.join(
-        model_dir_path, model_storage_dirs[0], MODEL_STATE_FILE_NAME
-    )
-    if not os.path.isfile(model_file_path):
-        return None
-    return model_file_path
+    return get_highest_numbered_file(model_dir_path, MODEL_STATE_FILE_TYPE)
 
 
 class RGB8Image:
@@ -319,7 +336,7 @@ def main(unused_argv):
         flags.FLAGS.model_path
         if flags.FLAGS.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_ROOT_DIR)
+            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME)
         )
     )
 

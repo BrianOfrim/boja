@@ -134,16 +134,17 @@ def s3_upload_files(
                         )
                     )
                 continue
+            print(
+                "Uploading file to %s:%s, %i/%i"
+                % (
+                    bucket_name,
+                    s3_destination_object_path,
+                    file_index + 1,
+                    len(files_to_send),
+                )
+            )
             s3.upload_file(file_to_send, bucket_name, s3_destination_object_path)
         except botocore.exceptions.ClientError as e:
             print(e)
             continue
-        print(
-            "Uploading file to %s:%s, %i/%i"
-            % (
-                bucket_name,
-                s3_destination_object_path,
-                file_index + 1,
-                len(files_to_send),
-            )
-        )
+

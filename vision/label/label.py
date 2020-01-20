@@ -13,8 +13,7 @@ from .gui import GUI, AnnotatedImage, Category
 from .._s3_utils import (
     s3_upload_files,
     s3_bucket_exists,
-    s3_get_object_names_from_dir,
-    s3_download_files,
+    s3_download_dir,
 )
 
 IMAGE_DIR_NAME = "images"
@@ -167,40 +166,27 @@ def main(unused_argv):
 
     if use_s3:
         # Download new images from s3
-        s3_images = s3_get_object_names_from_dir(
+        s3_download_dir(
             flags.FLAGS.s3_bucket_name,
-            flags.FLAGS.s3_data_dir + "/" + IMAGE_DIR_NAME,
-            IMAGE_FILE_TYPE,
-        )
-        s3_download_files(
-            flags.FLAGS.s3_bucket_name,
-            s3_images,
+            "/".join([flags.FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
             os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME),
+            IMAGE_FILE_TYPE,
         )
 
         # Download any nest annotation files from s3
-        s3_annotations = s3_get_object_names_from_dir(
+        s3_download_dir(
             flags.FLAGS.s3_bucket_name,
-            flags.FLAGS.s3_data_dir + "/" + ANNOTATION_DIR_NAME,
+            "/".join([flags.FLAGS.s3_data_dir, ANNOTATION_DIR_NAME]),
+            os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
             ANNOTATION_FILE_TYPE,
         )
 
-        s3_download_files(
-            flags.FLAGS.s3_bucket_name,
-            s3_annotations,
-            os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
-        )
-
         # Download any new manifests files from s3
-        s3_manifests = s3_get_object_names_from_dir(
+        s3_download_dir(
             flags.FLAGS.s3_bucket_name,
-            flags.FLAGS.s3_data_dir + "/" + MANIFEST_DIR_NAME,
-        )
-
-        s3_download_files(
-            flags.FLAGS.s3_bucket_name,
-            s3_manifests,
+            "/".join([flags.FLAGS.s3_data_dir, MANIFEST_DIR_NAME]),
             os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME),
+            MANIFEST_FILE_TYPE,
         )
 
     if not os.path.isfile(flags.FLAGS.label_file_path):

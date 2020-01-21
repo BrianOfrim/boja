@@ -16,7 +16,7 @@ def s3_bucket_exists(name: str) -> bool:
     return True
 
 
-def file_exists(bucket_name: str, s3_object_path: str) -> None:
+def s3_file_exists(bucket_name: str, s3_object_path: str) -> None:
     s3 = boto3.resource("s3")
     try:
         s3.Object(bucket_name, s3_object_path).load()  # pylint: disable=no-member
@@ -122,7 +122,7 @@ def s3_upload_files(
             [s3_destination_object_dir, os.path.basename(file_to_send)]
         )
         try:
-            if file_exists(bucket_name, s3_destination_object_path):
+            if s3_file_exists(bucket_name, s3_destination_object_path):
                 if notify_if_exists:
                     print(
                         "S3 object already exists %s:%s, %i/%i"

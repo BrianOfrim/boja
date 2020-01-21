@@ -9,6 +9,7 @@ from ._s3_utils import (
     s3_download_files,
     s3_get_object_names_from_dir,
     s3_upload_files,
+    s3_file_exists,
 )
 
 IMAGE_DIR_NAME = "images"
@@ -28,6 +29,7 @@ DATA_SUB_DIRS_AND_TYPES = [
     (MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE),
 ]
 
+LABEL_FILE_NAME = "labels.txt"
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -126,6 +128,27 @@ def main(unused_argv):
         return
 
     print("Bucket: %s exists and you have access to it" % flags.FLAGS.s3_bucket_name)
+
+    local_label_file_exists = os.path.isfile(
+        os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)
+    )
+
+    s3_label_file_exists = s3_file_exists(
+        flags.FLAGS.s3_bucket_name, "/".join([flags.FLAGS.s3_data_dir, LABEL_FILE_NAME])
+    )
+
+    if local_label_file_exists and not s3_label_file_exists:
+        s3_upload_files(
+            flags.FLAGS.s3_bucket_name,
+            [os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)],
+            flags.FLAGS.s3_data_dir,
+        )
+    elif s3_label_file_exists and not local_label_file_exists:
+        s3_download_files(
+            flags.FLAGS.s3_bucket_name,
+            ["/".join([flags.FLAGS.s3_data_dir, LABEL_FILE_NAME])],
+            flags.FLAGS.local_data_dir,
+        )
 
     for sub_data_dir, file_type in DATA_SUB_DIRS_AND_TYPES:
         print(

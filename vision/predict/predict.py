@@ -212,6 +212,12 @@ def get_newest_image(cam):
         return None
 
 
+def key_press(event, continue_streaming):
+
+    if event.key == "escape":
+        continue_streaming[0] = False
+
+
 def display_images(cam, labels, saved_model_file_path) -> None:
     try:
 
@@ -234,6 +240,12 @@ def display_images(cam, labels, saved_model_file_path) -> None:
         # create plots
         fig, (im_ax, inference_ax) = plt.subplots(1, 2)
 
+        continue_streaming = [True]
+
+        fig.canvas.mpl_connect(
+            "key_press_event", lambda event: key_press(event, continue_streaming)
+        )
+
         print("Model state loaded")
 
         label_colors = plt.get_cmap("hsv")(np.linspace(0, 0.9, len(labels)))
@@ -244,7 +256,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
         cam.start_image_acquisition()
 
         with torch.no_grad():
-            while True:
+            while continue_streaming[0]:
                 retrieved_image = get_newest_image(cam)
 
                 if retrieved_image is None:

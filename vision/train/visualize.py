@@ -220,6 +220,10 @@ def main(unused_argv):
     with torch.no_grad():
         for data in dataset:
             image, target = data
+            # make a copy of the image for display before sending to device
+            display_image_base = F.to_pil_image(image)
+            image = image.to(device)
+            target = {k: v.to(device) for k, v in target.items()}
             model_time = time.time()
             outputs = model([image])
             outputs = [
@@ -227,8 +231,6 @@ def main(unused_argv):
             ]
             model_time = time.time() - model_time
             print("Inference time = ", model_time)
-
-            display_image_base = F.to_pil_image(image)
 
             ground_truth_ax.clear()
             inference_ax.clear()

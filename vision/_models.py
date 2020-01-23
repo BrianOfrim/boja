@@ -2,6 +2,7 @@ import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.rpn import AnchorGenerator
+from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
 
 def get_fasterrcnn_resnet50(num_classes):
@@ -10,6 +11,15 @@ def get_fasterrcnn_resnet50(num_classes):
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model
+
+
+def get_fasterrcnn_resnet34(num_classes):
+    backbone = resnet_fpn_backbone("resnet34", pretrained=True)
+    model = FasterRCNN(backbone, num_classes)
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
     return model

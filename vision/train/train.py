@@ -11,7 +11,11 @@ import torch
 
 from .datasets import BojaDataSet
 from .engine import train_one_epoch, evaluate
-from .._models import get_fasterrcnn_resnet50, get_fasterrcnn_mobilenet_v2
+from .._models import (
+    get_fasterrcnn_resnet50,
+    get_fasterrcnn_mobilenet_v2,
+    get_fasterrcnn_resnet34,
+)
 from .._s3_utils import (
     s3_bucket_exists,
     s3_upload_files,
@@ -232,7 +236,7 @@ def main(unused_argv):
     )
 
     # get the model using our helper function
-    model = get_fasterrcnn_resnet50(num_classes)
+    model = get_fasterrcnn_resnet34(num_classes)
 
     # move model to the right device
     model.to(device)

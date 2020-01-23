@@ -48,10 +48,7 @@ def s3_get_object_names_from_dir(
 
 
 def s3_download_files(
-    bucket_name: str,
-    s3_object_paths: List[str],
-    destination_dir: str,
-    notify_if_exists: bool = False,
+    bucket_name: str, s3_object_paths: List[str], destination_dir: str
 ) -> None:
     s3_client = boto3.client("s3")
     s3_resource = boto3.resource("s3")
@@ -60,44 +57,33 @@ def s3_download_files(
             bucket_name, s3_object_path
         )
         for s3_object_path in s3_object_paths
+        if not os.path.isfile(
+            os.path.join(destination_dir, os.path.basename(s3_object_path))
+        )
     ]
 
     if not os.path.isdir(destination_dir):
         pathlib.Path(destination_dir).mkdir(parents=True, exist_ok=True)
 
     for object_index, object_summary in enumerate(object_summary_list):
-        destination_file_path = os.path.join(
-            destination_dir, os.path.basename(object_summary.key)
-        )
-        if not os.path.isfile(destination_file_path):
-            print(
-                "Downloading file from %s:%s, %i/%i"
-                % (
-                    object_summary.bucket_name,
-                    object_summary.key,
-                    object_index + 1,
-                    len(object_summary_list),
-                )
+
+        print(
+            "Downloading file from %s:%s, %i/%i"
+            % (
+                object_summary.bucket_name,
+                object_summary.key,
+                object_index + 1,
+                len(object_summary_list),
             )
-            try:
-                s3_client.download_file(  # pylint: disable=no-member
-                    object_summary.bucket_name,
-                    object_summary.key,
-                    destination_file_path,
-                )
-            except botocore.exceptions.ClientError as e:
-                print(e)
-        else:
-            if notify_if_exists:
-                print(
-                    "File already downloaded: %s:%s, %i/%i"
-                    % (
-                        object_summary.bucket_name,
-                        object_summary.key,
-                        object_index + 1,
-                        len(object_summary_list),
-                    )
-                )
+        )
+        try:
+            s3_client.download_file(  # pylint: disable=no-member
+                object_summary.bucket_name,
+                object_summary.key,
+                os.path.join(destination_dir, os.path.basename(object_summary.key)),
+            )
+        except botocore.exceptions.ClientError as e:
+            print(e)
 
 
 def s3_download_dir(

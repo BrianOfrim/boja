@@ -16,13 +16,14 @@ from .._s3_utils import (
     s3_download_dir,
 )
 
-IMAGE_DIR_NAME = "images"
-ANNOTATION_DIR_NAME = "annotations"
-MANIFEST_DIR_NAME = "manifests"
-
-IMAGE_FILE_TYPE = "jpg"
-ANNOTATION_FILE_TYPE = "xml"
-MANIFEST_FILE_TYPE = "txt"
+from .._settings import (
+    IMAGE_DIR_NAME,
+    ANNOTATION_DIR_NAME,
+    MANIFEST_DIR_NAME,
+    IMAGE_FILE_TYPE,
+    ANNOTATION_FILE_TYPE,
+    MANIFEST_FILE_TYPE,
+)
 
 flags.DEFINE_string(
     "label_file_path",

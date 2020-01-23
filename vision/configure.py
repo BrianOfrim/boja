@@ -12,15 +12,17 @@ from ._s3_utils import (
     s3_file_exists,
 )
 
-IMAGE_DIR_NAME = "images"
-ANNOTATION_DIR_NAME = "annotations"
-MANIFEST_DIR_NAME = "manifests"
-MODEL_STATE_DIR_NAME = "modelstates"
-
-IMAGE_FILE_TYPE = "jpg"
-ANNOTATION_FILE_TYPE = "xml"
-MANIFEST_FILE_TYPE = "txt"
-MODEL_STATE_FILE_TYPE = "pt"
+from ._settings import (
+    IMAGE_DIR_NAME,
+    ANNOTATION_DIR_NAME,
+    MANIFEST_DIR_NAME,
+    MODEL_STATE_DIR_NAME,
+    IMAGE_FILE_TYPE,
+    ANNOTATION_FILE_TYPE,
+    MANIFEST_FILE_TYPE,
+    MODEL_STATE_FILE_TYPE,
+    LABEL_FILE_NAME,
+)
 
 DATA_SUB_DIRS_AND_TYPES = [
     (IMAGE_DIR_NAME, IMAGE_FILE_TYPE),
@@ -29,7 +31,6 @@ DATA_SUB_DIRS_AND_TYPES = [
     (MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE),
 ]
 
-LABEL_FILE_NAME = "labels.txt"
 
 flags.DEFINE_string(
     "local_data_dir",

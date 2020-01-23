@@ -12,20 +12,25 @@ import torch
 import torchvision.transforms.functional as F
 
 from .datasets import BojaDataSet
-from .._models import get_fasterrcnn_resnet50, get_fasterrcnn_mobilenet_v2
+from .._models import (
+    get_fasterrcnn_resnet50,
+    get_fasterrcnn_resnet34,
+    get_fasterrcnn_mobilenet_v2,
+)
 from .transforms import ToTensor, RandomHorizontalFlip, Compose
 
 matplotlib.use("TKAgg")
 
-IMAGE_DIR_NAME = "images"
-ANNOTATION_DIR_NAME = "annotations"
-MANIFEST_DIR_NAME = "manifests"
-MODEL_STATE_DIR_NAME = "modelstates"
-
-IMAGE_FILE_TYPE = "jpg"
-ANNOTATION_FILE_TYPE = "xml"
-MANIFEST_FILE_TYPE = "txt"
-MODEL_STATE_FILE_TYPE = "pt"
+from .._settings import (
+    IMAGE_DIR_NAME,
+    ANNOTATION_DIR_NAME,
+    MANIFEST_DIR_NAME,
+    MODEL_STATE_DIR_NAME,
+    IMAGE_FILE_TYPE,
+    ANNOTATION_FILE_TYPE,
+    MANIFEST_FILE_TYPE,
+    MODEL_STATE_FILE_TYPE,
+)
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -199,7 +204,7 @@ def main(unused_argv):
     )
 
     # get the model using our helper function
-    model = get_fasterrcnn_resnet50(num_classes)
+    model = get_fasterrcnn_resnet34(num_classes)
 
     print("Loading model state from: %s" % saved_model_file_path)
 

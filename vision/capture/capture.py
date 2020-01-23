@@ -13,10 +13,9 @@ import numpy as np
 
 from .._s3_utils import s3_upload_files, s3_bucket_exists
 
-WINDOW_NAME = "Capture"
+from .._settings import IMAGE_DIR_NAME, IMAGE_FILE_TYPE
 
-IMAGE_DIR_NAME = "images"
-IMAGE_FILE_TYPE = "jpg"
+WINDOW_NAME = "Capture"
 
 flags.DEFINE_string(
     "gentl_producer_path",

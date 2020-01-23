@@ -18,11 +18,11 @@ import torch
 import torchvision.transforms.functional as F
 
 from .._models import get_fasterrcnn_resnet50, get_fasterrcnn_mobilenet_v2
+from .._settings import MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE
+
 
 matplotlib.use("TKAgg")
 
-MODEL_STATE_DIR_NAME = "modelstates"
-MODEL_STATE_FILE_TYPE = "pt"
 INFERENCE_WINDOW_NAME = "Inference"
 
 

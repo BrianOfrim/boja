@@ -13,7 +13,7 @@ import numpy as np
 
 from .._s3_utils import s3_upload_files, s3_bucket_exists
 
-from .._settings import IMAGE_DIR_NAME, IMAGE_FILE_TYPE
+from .._settings import IMAGE_DIR_NAME, IMAGE_FILE_TYPE, NETWORKS
 
 WINDOW_NAME = "Capture"
 
@@ -38,6 +38,10 @@ flags.DEFINE_string(
 flags.DEFINE_string("s3_bucket_name", None, "S3 bucket to send images to.")
 
 flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
+
+flags.DEFINE_enum(
+    "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
+)
 
 
 class RGB8Image:

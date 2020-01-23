@@ -11,11 +11,7 @@ import torch
 
 from .datasets import BojaDataSet
 from .engine import train_one_epoch, evaluate
-from .._models import (
-    get_fasterrcnn_resnet50,
-    get_fasterrcnn_mobilenet_v2,
-    get_fasterrcnn_resnet34,
-)
+from .. import _models
 from .._s3_utils import (
     s3_bucket_exists,
     s3_upload_files,
@@ -34,6 +30,7 @@ from .._settings import (
     MODEL_STATE_FILE_TYPE,
     LABEL_FILE_NAME,
     INVALID_ANNOTATION_FILE_IDENTIFIER,
+    NETWORKS,
 )
 
 flags.DEFINE_string(
@@ -55,7 +52,9 @@ flags.DEFINE_string(
 flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
 
 # Hyperparameters
-
+flags.DEFINE_enum(
+    "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
+)
 flags.DEFINE_integer("num_epochs", 10, "The number of epochs to train the model for.")
 
 
@@ -236,7 +235,7 @@ def main(unused_argv):
     )
 
     # get the model using our helper function
-    model = get_fasterrcnn_resnet34(num_classes)
+    model = _models.__dict__[flags.FLAGS.network](num_classes)
 
     # move model to the right device
     model.to(device)
@@ -266,7 +265,8 @@ def main(unused_argv):
     create_output_dir(model_state_local_dir)
 
     model_state_file_path = os.path.join(
-        model_state_local_dir, "%s.%s" % (str(start_time), MODEL_STATE_FILE_TYPE)
+        model_state_local_dir,
+        "%s-%s.%s" % (str(start_time), flags.FLAGS.network, MODEL_STATE_FILE_TYPE),
     )
 
     # Save the model state to a file

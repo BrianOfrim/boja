@@ -17,8 +17,8 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as F
 
-from .._models import get_fasterrcnn_resnet50, get_fasterrcnn_mobilenet_v2
-from .._settings import MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE
+from .. import _models
+from .._settings import MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE, NETWORKS
 
 
 matplotlib.use("TKAgg")
@@ -52,6 +52,11 @@ flags.DEFINE_string("model_path", None, "The model to load. Default is newest.")
 
 
 flags.DEFINE_integer("frame_rate", 30, "Frame rate to acquire images at.")
+
+
+flags.DEFINE_enum(
+    "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
+)
 
 
 def draw_bboxes(
@@ -111,7 +116,9 @@ def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
     return file_paths
 
 
-def get_highest_numbered_file(dir_path: str, file_extention: str = None) -> str:
+def get_highest_numbered_file(
+    dir_path: str, file_extention: str = None, filter_keyword=None
+) -> str:
     file_names = get_files_from_dir(dir_path)
 
     if file_extention is not None:
@@ -120,14 +127,22 @@ def get_highest_numbered_file(dir_path: str, file_extention: str = None) -> str:
             for file_name in file_names
             if file_name.lower().endswith(file_extention.lower())
         ]
+    if filter_keyword is not None:
+        file_names = [
+            file_name
+            for file_name in file_names
+            if filter_keyword.lower() in file_name.lower()
+        ]
     if len(file_names) == 0:
         return None
     highest_numbered_file = sorted(file_names, key=int_string_sort, reverse=True)[0]
     return os.path.join(dir_path, highest_numbered_file)
 
 
-def get_newest_saved_model_path(model_dir_path: str) -> str:
-    return get_highest_numbered_file(model_dir_path, MODEL_STATE_FILE_TYPE)
+def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str:
+    return get_highest_numbered_file(
+        model_dir_path, MODEL_STATE_FILE_TYPE, filter_keyword
+    )
 
 
 class RGB8Image:
@@ -226,7 +241,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
         )
 
         # get the model using our helper function
-        model = get_fasterrcnn_resnet50(len(labels))
+        model = _models.__dict__[flags.FLAGS.network](len(labels))
 
         print("Loading model state from: %s" % saved_model_file_path)
 
@@ -348,7 +363,9 @@ def main(unused_argv):
         flags.FLAGS.model_path
         if flags.FLAGS.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME)
+            os.path.join(
+                flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME, flags.FLAGS.network
+            )
         )
     )
 

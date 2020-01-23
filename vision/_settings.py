@@ -12,3 +12,9 @@ MODEL_STATE_FILE_TYPE = "pt"
 LABEL_FILE_NAME = "labels.txt"
 
 INVALID_ANNOTATION_FILE_IDENTIFIER = "invalid"
+
+NETWORKS = [
+    "fasterrcnn_resnet50",
+    "fasterrcnn_resnet34",
+    "fasterrcnn_mobilenetv2",
+]

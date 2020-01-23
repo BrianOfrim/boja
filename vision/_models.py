@@ -5,7 +5,10 @@ from torchvision.models.detection.rpn import AnchorGenerator
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 
 
-def get_fasterrcnn_resnet50(num_classes):
+__all__ = ["fasterrcnn_resnet50", "fasterrcnn_resnet34", "fasterrcnn_mobilenetv2"]
+
+
+def fasterrcnn_resnet50(num_classes):
     # load a model pre-trained pre-trained on COCO
     model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
     # get number of input features for the classifier
@@ -16,7 +19,7 @@ def get_fasterrcnn_resnet50(num_classes):
     return model
 
 
-def get_fasterrcnn_resnet34(num_classes):
+def fasterrcnn_resnet34(num_classes):
     backbone = resnet_fpn_backbone("resnet34", pretrained=True)
     model = FasterRCNN(backbone, num_classes)
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -25,7 +28,7 @@ def get_fasterrcnn_resnet34(num_classes):
     return model
 
 
-def get_fasterrcnn_mobilenet_v2(num_classes):
+def fasterrcnn_mobilenetv2(num_classes):
 
     backbone = torchvision.models.mobilenet_v2(pretrained=True).features
     backbone.out_channels = 1280

@@ -363,9 +363,8 @@ def main(unused_argv):
         flags.FLAGS.model_path
         if flags.FLAGS.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(
-                flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME, flags.FLAGS.network
-            )
+            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            flags.FLAGS.network,
         )
     )
 

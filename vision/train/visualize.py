@@ -86,7 +86,6 @@ def get_highest_numbered_file(
     dir_path: str, file_extention: str = None, filter_keyword=None
 ) -> str:
     file_names = get_files_from_dir(dir_path)
-
     if file_extention is not None:
         file_names = [
             file_name
@@ -190,9 +189,8 @@ def main(unused_argv):
         flags.FLAGS.model_path
         if flags.FLAGS.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(
-                flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME, flags.FLAGS.network
-            )
+            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            flags.FLAGS.network,
         )
     )
 

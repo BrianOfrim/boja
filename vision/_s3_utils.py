@@ -87,10 +87,11 @@ def s3_download_files(
 
 
 def s3_download_dir(
-    s3_bucket_name: str, s3_dir_path: str, local_dir_path, file_type: str = None
+    s3_bucket_name: str, s3_dir_path: str, local_dir_path, file_type: str = None,
 ) -> None:
 
     files = s3_get_object_names_from_dir(s3_bucket_name, s3_dir_path, file_type)
+
     s3_download_files(
         s3_bucket_name, files, local_dir_path,
     )

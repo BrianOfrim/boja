@@ -1,6 +1,7 @@
+from dataclasses import dataclass
 import os
-from typing import List
 import re
+from typing import List
 
 from absl import app, flags
 
@@ -24,11 +25,19 @@ from ._settings import (
     LABEL_FILE_NAME,
 )
 
-DATA_SUB_DIRS_AND_TYPES = [
-    (IMAGE_DIR_NAME, IMAGE_FILE_TYPE),
-    (ANNOTATION_DIR_NAME, ANNOTATION_FILE_TYPE),
-    (MANIFEST_DIR_NAME, MANIFEST_FILE_TYPE),
-    (MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE),
+
+@dataclass
+class DataSubDir:
+    name: str
+    file_type: str
+    max_to_download: int
+
+
+DATA_SUB_DIRS = [
+    DataSubDir(IMAGE_DIR_NAME, IMAGE_FILE_TYPE, None),
+    DataSubDir(ANNOTATION_DIR_NAME, ANNOTATION_FILE_TYPE, None),
+    DataSubDir(MANIFEST_DIR_NAME, MANIFEST_FILE_TYPE, None),
+    DataSubDir(MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE, 2),
 ]
 
 
@@ -72,9 +81,16 @@ def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
     return file_paths
 
 
-def sync_s3_and_local_dir(s3_bucket_name, s3_dir, local_dir, file_type):
+def int_string_sort(file_name) -> int:
+    match = re.match("[0-9]+", os.path.basename(file_name))
+    if not match:
+        return 0
+    return int(match[0])
+
+
+def sync_s3_and_local_dir(s3_bucket_name, s3_dir, local_dir, file_type, n_newest=None):
     # get a set of data files in s3 dir
-    s3_files = s3_get_object_names_from_dir(s3_bucket_name, s3_dir, file_type,)
+    s3_files = s3_get_object_names_from_dir(s3_bucket_name, s3_dir, file_type)
 
     s3_files = {os.path.basename(s3_file) for s3_file in s3_files}
 
@@ -86,6 +102,11 @@ def sync_s3_and_local_dir(s3_bucket_name, s3_dir, local_dir, file_type):
     # Determine which files to download and upload
     files_to_download = s3_files.difference(local_files)
     files_to_upload = local_files.difference(s3_files)
+
+    if n_newest is not None:
+        # only download the numerically newest
+        files_to_download = sorted(files_to_download, key=int_string_sort, reverse=True)
+        files_to_download = files_to_download[: min(len(files_to_download), n_newest)]
 
     s3_download_files(
         s3_bucket_name,
@@ -105,13 +126,13 @@ def main(unused_argv):
         print("Error creating local data directory %s" % flags.FLAGS.local_data_dir)
         return
     # create local data sub directories
-    for sub_data_dir, _ in DATA_SUB_DIRS_AND_TYPES:
+    for data_sub_dir in DATA_SUB_DIRS:
         if not create_output_dir(
-            os.path.join(flags.FLAGS.local_data_dir, sub_data_dir)
+            os.path.join(flags.FLAGS.local_data_dir, data_sub_dir.name)
         ):
             print(
                 "Error creating local data directory %s"
-                % os.path.join(flags.FLAGS.local_data_dir, sub_data_dir)
+                % os.path.join(flags.FLAGS.local_data_dir, data_sub_dir.name)
             )
             return
 
@@ -151,16 +172,17 @@ def main(unused_argv):
             flags.FLAGS.local_data_dir,
         )
 
-    for sub_data_dir, file_type in DATA_SUB_DIRS_AND_TYPES:
+    for data_sub_dir in DATA_SUB_DIRS:
         print(
             "Syncing files of type: %s from folder: %s between s3 and local"
-            % (sub_data_dir, file_type)
+            % (data_sub_dir.file_type, data_sub_dir.name)
         )
         sync_s3_and_local_dir(
             flags.FLAGS.s3_bucket_name,
-            "/".join([flags.FLAGS.s3_data_dir, sub_data_dir]),
-            os.path.join(flags.FLAGS.local_data_dir, sub_data_dir),
-            file_type,
+            "/".join([flags.FLAGS.s3_data_dir, data_sub_dir.name]),
+            os.path.join(flags.FLAGS.local_data_dir, data_sub_dir.name),
+            data_sub_dir.file_type,
+            data_sub_dir.max_to_download,
         )
 
 

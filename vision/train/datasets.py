@@ -4,7 +4,7 @@ from typing import List
 from PIL import Image
 import torch
 
-from .pascal_voc_parser import read_content
+from .pascal_voc_parser import read_content, has_boxes
 
 
 INVALID_ANNOTATION_FILE_IDENTIFIER = "invalid"
@@ -28,11 +28,12 @@ class BojaDataSet(object):
         manifest_items = [
             item.strip() for item in open(manifest_file_path).read().splitlines()
         ]
-        # Filter out Invalid images
+        # Filter out Invalid images and annotations with no bounding boxes
         manifest_items = [
             item
             for item in manifest_items
             if item.split(",")[1].lower() != INVALID_ANNOTATION_FILE_IDENTIFIER
+            and has_boxes(os.path.join(self.annotation_dir_path, item.split(",")[1]))
         ]
 
         self.images = [

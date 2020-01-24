@@ -42,6 +42,14 @@ def read_content(xml_file: str) -> (str, List[BBox]):
     return image_filename, bboxes
 
 
+def has_boxes(xml_file: str) -> bool:
+    if not os.path.isfile(xml_file):
+        return False
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+    return root.find("object") is not None
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("No annotation file specified.")
@@ -54,11 +62,14 @@ if __name__ == "__main__":
         print(
             "Annotation file: %s, Image file: %s" % (str(sys.argv[1]), image_file_name)
         )
-        print("Bounding boxes:")
-        for bbox in bboxes:
-            print(bbox.label)
-            print(
-                "\txmin: %d, ymin: %d, xmax: %d, ymax: %d, Area: %d"
-                % (bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, bbox.get_area())
-            )
+        if has_boxes(sys.argv[1]):
+            print("Bounding boxes:")
+            for bbox in bboxes:
+                print(bbox.label)
+                print(
+                    "\txmin: %d, ymin: %d, xmax: %d, ymax: %d, Area: %d"
+                    % (bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, bbox.get_area())
+                )
+        else:
+            print("No bounding boxes.")
 

@@ -7,6 +7,8 @@ from typing import List
 import re
 
 from absl import app, flags
+import matplotlib
+import matplotlib.pyplot as plt
 import torch
 
 from .datasets import BojaDataSet
@@ -29,9 +31,15 @@ from .._settings import (
     MANIFEST_FILE_TYPE,
     MODEL_STATE_FILE_TYPE,
     LABEL_FILE_NAME,
+    LOGS_DIR_NAME,
     INVALID_ANNOTATION_FILE_IDENTIFIER,
     NETWORKS,
 )
+
+matplotlib.use("Agg")
+
+AVERAGE_PRECISION_STAT_INDEX = 0
+AVERAGE_RECALL_STAT_INDEX = 8
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -250,23 +258,30 @@ def main(unused_argv):
 
     print("Training for %d epochs" % num_epochs)
 
+    average_persision = []
+    average_recall = []
+
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
         train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
-        evaluate(model, data_loader_test, device=device)
+        eval_data = evaluate(model, data_loader_test, device=device)
+
+        stats = eval_data.coco_eval["bbox"].stats
+        average_persision.append(stats[AVERAGE_PRECISION_STAT_INDEX])
+        average_recall.append(stats[AVERAGE_RECALL_STAT_INDEX])
 
     model_state_local_dir = os.path.join(
         flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME
     )
     # Create model state directory if it does not exist yet
     create_output_dir(model_state_local_dir)
+    run_name = "%s-%s" % (str(start_time), flags.FLAGS.network)
 
     model_state_file_path = os.path.join(
-        model_state_local_dir,
-        "%s-%s.%s" % (str(start_time), flags.FLAGS.network, MODEL_STATE_FILE_TYPE),
+        model_state_local_dir, "%s.%s" % (run_name, MODEL_STATE_FILE_TYPE),
     )
 
     # Save the model state to a file
@@ -274,12 +289,32 @@ def main(unused_argv):
 
     print("Model state saved at: %s" % model_state_file_path)
 
+    plt.plot(average_persision, label="AP: IoU=0.50:0.95 maxDets=100")
+    plt.plot(average_recall, label="AP: IoU=0.50:0.95 maxDets=100")
+    plt.legend(loc="lower right")
+    plt.title("Evaluation data from %s" % run_name)
+
+    # Create log file directory if it does not exist yet
+    log_image_local_dir = os.path.join(flags.FLAGS.local_data_dir, LOGS_DIR_NAME)
+    create_output_dir(log_image_local_dir)
+
+    log_file_name = "%s.jpg" % run_name
+    log_file_path = os.path.join(log_image_local_dir, log_file_name)
+    plt.savefig(log_file_path)
+
+    print("Log file saved at: %s" % log_file_path)
+
     if use_s3:
-        # Send the saved model to S3
+        # Send the saved model and logs to S3
         s3_upload_files(
             flags.FLAGS.s3_bucket_name,
             [model_state_file_path],
             "/".join([flags.FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
+        )
+        s3_upload_files(
+            flags.FLAGS.s3_bucket_name,
+            [log_file_path],
+            "/".join([flags.FLAGS.s3_data_dir, LOGS_DIR_NAME]),
         )
 
     print("Training complete")

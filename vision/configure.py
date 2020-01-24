@@ -18,6 +18,7 @@ from ._settings import (
     ANNOTATION_DIR_NAME,
     MANIFEST_DIR_NAME,
     MODEL_STATE_DIR_NAME,
+    LOGS_DIR_NAME,
     IMAGE_FILE_TYPE,
     ANNOTATION_FILE_TYPE,
     MANIFEST_FILE_TYPE,
@@ -38,6 +39,7 @@ DATA_SUB_DIRS = [
     DataSubDir(ANNOTATION_DIR_NAME, ANNOTATION_FILE_TYPE, None),
     DataSubDir(MANIFEST_DIR_NAME, MANIFEST_FILE_TYPE, None),
     DataSubDir(MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE, 3),
+    DataSubDir(LOGS_DIR_NAME, None, None),
 ]
 
 
@@ -175,7 +177,10 @@ def main(unused_argv):
     for data_sub_dir in DATA_SUB_DIRS:
         print(
             "Syncing files of type: %s from folder: %s between s3 and local"
-            % (data_sub_dir.file_type, data_sub_dir.name)
+            % (
+                "all" if data_sub_dir.file_type is None else data_sub_dir.file_type,
+                data_sub_dir.name,
+            )
         )
         sync_s3_and_local_dir(
             flags.FLAGS.s3_bucket_name,

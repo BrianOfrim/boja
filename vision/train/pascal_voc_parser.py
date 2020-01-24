@@ -58,13 +58,13 @@ if __name__ == "__main__":
     ):
         print("Invalid annotation file specified.")
     else:
-        image_file_name, bboxes = read_content(str(sys.argv[1]))
+        image_file_name, bbox_list = read_content(str(sys.argv[1]))
         print(
             "Annotation file: %s, Image file: %s" % (str(sys.argv[1]), image_file_name)
         )
         if has_boxes(sys.argv[1]):
             print("Bounding boxes:")
-            for bbox in bboxes:
+            for bbox in bbox_list:
                 print(bbox.label)
                 print(
                     "\txmin: %d, ymin: %d, xmax: %d, ymax: %d, Area: %d"

@@ -3,6 +3,7 @@ IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"
 MANIFEST_DIR_NAME = "manifests"
 MODEL_STATE_DIR_NAME = "modelstates"
+LOGS_DIR_NAME = "logs"
 
 IMAGE_FILE_TYPE = "jpg"
 ANNOTATION_FILE_TYPE = "xml"

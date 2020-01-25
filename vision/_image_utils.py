@@ -1,5 +1,7 @@
 from cv2 import cv2
 import numpy as np
+import matplotlib
+import matplotlib.patches as patches
 
 
 class RGB8Image:
@@ -86,3 +88,43 @@ class RGB8Image:
     @staticmethod
     def to_bgr(image_data: np.ndarray) -> np.ndarray:
         return cv2.cvtColor(image_data, cv2.COLOR_RGB2BGE)
+
+
+def draw_bboxes(
+    ax, bboxes, label_indices, label_names, label_colors, label_scores=None
+):
+    for box_index, (box, label_index) in enumerate(zip(bboxes, label_indices)):
+        height = box[3] - box[1]
+        width = box[2] - box[0]
+        lower_left = (box[0], box[1])
+        rect = patches.Rectangle(
+            lower_left,
+            width,
+            height,
+            linewidth=2,
+            edgecolor=label_colors[label_index],
+            facecolor="none",
+        )
+        ax.add_patch(rect)
+        label_string = ""
+        if label_scores is None:
+            label_string = label_names[label_index]
+        else:
+            label_string = "%s [%.2f]" % (
+                label_names[label_index],
+                label_scores[box_index],
+            )
+        ax.text(
+            box[0],
+            box[1] - 10,
+            label_string,
+            bbox=dict(
+                facecolor=label_colors[label_index],
+                alpha=0.5,
+                pad=1,
+                edgecolor=label_colors[label_index],
+            ),
+            fontsize=10,
+            color="white",
+        )
+

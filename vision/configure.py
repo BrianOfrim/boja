@@ -26,6 +26,18 @@ from ._settings import (
     LABEL_FILE_NAME,
 )
 
+flags.DEFINE_string(
+    "local_data_dir",
+    os.path.join(os.path.expanduser("~"), "boja", "data"),
+    "Local data directory.",
+)
+
+flags.DEFINE_string(
+    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
+)
+
+flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
+
 
 @dataclass
 class DataSubDir:
@@ -38,22 +50,9 @@ DATA_SUB_DIRS = [
     DataSubDir(IMAGE_DIR_NAME, IMAGE_FILE_TYPE, None),
     DataSubDir(ANNOTATION_DIR_NAME, ANNOTATION_FILE_TYPE, None),
     DataSubDir(MANIFEST_DIR_NAME, MANIFEST_FILE_TYPE, None),
-    DataSubDir(MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE, 3),
+    DataSubDir(MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE, 5),
     DataSubDir(LOGS_DIR_NAME, None, None),
 ]
-
-
-flags.DEFINE_string(
-    "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "boja", "data"),
-    "Local data directory.",
-)
-
-flags.DEFINE_string(
-    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
-)
-
-flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
 
 
 def int_string_sort(file_name) -> int:

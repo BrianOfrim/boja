@@ -1,23 +1,19 @@
-import copy
 import os
-import time
-from typing import List
 
 from absl import app, flags
-from cv2 import cv2
 from genicam.gentl import TimeoutException
 from harvesters.core import Harvester
 
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
 import torch
 import torchvision.transforms.functional as F
 
-from .._file_utils import get_files_from_dir, get_highest_numbered_file
-from .._image_utils import RGB8Image
+from .._file_utils import get_highest_numbered_file
+from .._image_utils import RGB8Image, draw_bboxes
 from .. import _models
+from .._s3_utils import s3_bucket_exists, s3_download_highest_numbered_file
 from .._settings import MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE, NETWORKS
 
 
@@ -31,6 +27,13 @@ flags.DEFINE_string(
     "/opt/mvIMPACT_Acquire/lib/x86_64/mvGenTLProducer.cti",
     "Path to the GenTL producer .cti file to use.",
 )
+
+flags.DEFINE_string(
+    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
+)
+
+flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
+
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -57,45 +60,6 @@ flags.DEFINE_integer("frame_rate", 30, "Frame rate to acquire images at.")
 flags.DEFINE_enum(
     "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
 )
-
-
-def draw_bboxes(
-    ax, bboxes, label_indices, label_names, label_colors, label_scores=None
-):
-    for box_index, (box, label_index) in enumerate(zip(bboxes, label_indices)):
-        height = box[3] - box[1]
-        width = box[2] - box[0]
-        lower_left = (box[0], box[1])
-        rect = patches.Rectangle(
-            lower_left,
-            width,
-            height,
-            linewidth=2,
-            edgecolor=label_colors[label_index],
-            facecolor="none",
-        )
-        ax.add_patch(rect)
-        label_string = ""
-        if label_scores is None:
-            label_string = label_names[label_index]
-        else:
-            label_string = "%s [%.2f]" % (
-                label_names[label_index],
-                label_scores[box_index],
-            )
-        ax.text(
-            box[0],
-            box[1] - 10,
-            label_string,
-            bbox=dict(
-                facecolor=label_colors[label_index],
-                alpha=0.5,
-                pad=1,
-                edgecolor=label_colors[label_index],
-            ),
-            fontsize=10,
-            color="white",
-        )
 
 
 def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str:
@@ -150,7 +114,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
         model.eval()
 
         # create plots
-        fig, (im_ax, inference_ax) = plt.subplots(1, 2)
+        fig, inference_ax = plt.subplots()
 
         continue_streaming = [True]
 
@@ -202,10 +166,8 @@ def display_images(cam, labels, saved_model_file_path) -> None:
                 )
 
                 inference_ax.clear()
-                im_ax.clear()
 
                 inference_ax.imshow(image_data)
-                im_ax.imshow(image_data)
 
                 draw_bboxes(
                     inference_ax,
@@ -240,6 +202,31 @@ def apply_camera_settings(cam) -> None:
 
 
 def main(unused_argv):
+
+    use_s3 = True if flags.FLAGS.s3_bucket_name is not None else False
+
+    if use_s3:
+        if not s3_bucket_exists(flags.FLAGS.s3_bucket_name):
+            use_s3 = False
+            print(
+                "Bucket: %s either does not exist or you do not have access to it"
+                % flags.FLAGS.s3_bucket_name
+            )
+        else:
+            print(
+                "Bucket: %s exists and you have access to it"
+                % flags.FLAGS.s3_bucket_name
+            )
+
+    if use_s3:
+        # Get the newest model
+        s3_download_highest_numbered_file(
+            flags.FLAGS.s3_bucket_name,
+            "/".join([flags.FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            MODEL_STATE_FILE_TYPE,
+            flags.FLAGS.network,
+        )
 
     if not os.path.isfile(flags.FLAGS.label_file_path):
         print("Invalid category labels path.")

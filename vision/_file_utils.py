@@ -30,22 +30,22 @@ def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
 
 
 def _int_string_sort(file_name) -> int:
-    match = re.match("[0-9]+", file_name)
+    match = re.match("[0-9]+", os.path.basename(file_name))
     if not match:
         return 0
     return int(match[0])
 
 
 def get_highest_numbered_file(
-    dir_path: str, file_extention: str = None, filter_keyword=None
+    dir_path: str, file_type: str = None, filter_keyword=None
 ) -> str:
     file_names = get_files_from_dir(dir_path)
 
-    if file_extention is not None:
+    if file_type is not None:
         file_names = [
             file_name
             for file_name in file_names
-            if file_name.lower().endswith(file_extention.lower())
+            if file_name.lower().endswith(file_type.lower())
         ]
     if filter_keyword is not None:
         file_names = [

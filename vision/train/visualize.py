@@ -1,34 +1,30 @@
-import os
-import re
 import time
-from typing import List
+import os
 
 from absl import app, flags
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
 import torch
 import torchvision.transforms.functional as F
 
 from .datasets import BojaDataSet
-from .._file_utils import get_files_from_dir, get_highest_numbered_file
+from .._file_utils import get_highest_numbered_file
+from .._image_utils import draw_bboxes
 from .. import _models
 from .transforms import ToTensor, RandomHorizontalFlip, Compose
-
-matplotlib.use("TKAgg")
 
 from .._settings import (
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
     MANIFEST_DIR_NAME,
     MODEL_STATE_DIR_NAME,
-    IMAGE_FILE_TYPE,
-    ANNOTATION_FILE_TYPE,
     MANIFEST_FILE_TYPE,
     MODEL_STATE_FILE_TYPE,
     NETWORKS,
 )
+
+matplotlib.use("TKAgg")
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -73,45 +69,6 @@ def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str
     return get_highest_numbered_file(
         model_dir_path, MODEL_STATE_FILE_TYPE, filter_keyword
     )
-
-
-def draw_bboxes(
-    ax, bboxes, label_indices, label_names, label_colors, label_scores=None
-):
-    for box_index, (box, label_index) in enumerate(zip(bboxes, label_indices)):
-        height = box[3] - box[1]
-        width = box[2] - box[0]
-        lower_left = (box[0], box[1])
-        rect = patches.Rectangle(
-            lower_left,
-            width,
-            height,
-            linewidth=2,
-            edgecolor=label_colors[label_index],
-            facecolor="none",
-        )
-        ax.add_patch(rect)
-        label_string = ""
-        if label_scores is None:
-            label_string = label_names[label_index]
-        else:
-            label_string = "%s [%.2f]" % (
-                label_names[label_index],
-                label_scores[box_index],
-            )
-        ax.text(
-            box[0],
-            box[1] - 10,
-            label_string,
-            bbox=dict(
-                facecolor=label_colors[label_index],
-                alpha=0.5,
-                pad=1,
-                edgecolor=label_colors[label_index],
-            ),
-            fontsize=10,
-            color="white",
-        )
 
 
 def main(unused_argv):

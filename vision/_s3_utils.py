@@ -1,5 +1,6 @@
 import os
 import pathlib
+import re
 from typing import List
 
 import boto3
@@ -94,6 +95,38 @@ def s3_download_dir(
 
     s3_download_files(
         s3_bucket_name, files, local_dir_path,
+    )
+
+
+def _int_string_sort(file_name) -> int:
+    match = re.match("[0-9]+", os.path.basename(file_name))
+    if not match:
+        return 0
+    return int(match[0])
+
+
+def s3_download_highest_numbered_file(
+    s3_bucket_name: str,
+    s3_dir_path: str,
+    local_dir_path,
+    file_type: str = None,
+    filter_keyword=None,
+) -> None:
+    object_names = s3_get_object_names_from_dir(s3_bucket_name, s3_dir_path, file_type)
+
+    file_names = [object_name.split("/")[-1] for object_name in object_names]
+
+    if filter_keyword is not None:
+        file_names = [
+            file_name
+            for file_name in file_names
+            if filter_keyword.lower() in file_name.lower()
+        ]
+    if len(file_names) == 0:
+        return
+    highest_numbered_file = sorted(file_names, key=_int_string_sort, reverse=True)[0]
+    s3_download_files(
+        s3_bucket_name, ["/".join([s3_dir_path, highest_numbered_file])], local_dir_path
     )
 
 

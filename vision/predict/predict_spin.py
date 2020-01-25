@@ -16,6 +16,7 @@ import torch
 import torchvision.transforms.functional as F
 
 from .._file_utils import get_files_from_dir, get_highest_numbered_file
+from .._image_utils import RGB8Image
 from .. import _models
 from .._settings import MODEL_STATE_DIR_NAME, MODEL_STATE_FILE_TYPE, NETWORKS
 
@@ -96,68 +97,6 @@ def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str
     )
 
 
-class RGB8Image:
-    def __init__(
-        self, width: int, height: int, data_format: str, image_data: np.ndarray
-    ):
-        self.image_data: np.ndarray = self._process_image(
-            image_data, data_format, width, height
-        )
-
-    def get_height(self):
-        return self.image_data.shape[0]
-
-    def get_width(self):
-        return self.image_data.shape[1]
-
-    def get_channels(self):
-        if len(self.image_data.shape) < 3:
-            return 1
-        return self.image_data.shape[2]
-
-    def get_data(self) -> np.ndarray:
-        return self.image_data
-
-    def _process_image(self, image_data, data_format, width, height) -> np.ndarray:
-        # Convert to BGR (on purpose)
-        if data_format == "Mono8":
-            return cv2.cvtColor(image_data.reshape(height, width), cv2.COLOR_GRAY2BGR)
-        elif data_format == "BayerRG8":
-            return cv2.cvtColor(
-                image_data.reshape(height, width), cv2.COLOR_BayerRG2BGR
-            )
-        elif data_format == "BayerGR8":
-            return cv2.cvtColor(
-                image_data.reshape(height, width), cv2.COLOR_BayerGR2BGR
-            )
-        elif data_format == "BayerGB8":
-            return cv2.cvtColor(
-                image_data.reshape(height, width), cv2.COLOR_BayerGB2BGR
-            )
-        elif data_format == "BayerBG8":
-            return cv2.cvtColor(
-                image_data.reshape(height, width), cv2.COLOR_BayerBG2BGR
-            )
-        elif data_format == "RGB8":
-            return cv2.cvtColor(image_data.reshape(height, width, 3), cv2.COLOR_BGR2RGB)
-        elif data_format == "BGR8":
-            return image_data.reshape(height, width, 3)
-        else:
-            print("Unsupported pixel format: %s" % data_format)
-            raise ValueError("Unsupported pixel format: %s" % data_format)
-
-    def get_resized_image(self, target_width: int) -> np.ndarray:
-        resize_ratio = float(target_width / self.get_width())
-        return cv2.resize(self.image_data, (0, 0), fx=resize_ratio, fy=resize_ratio)
-
-    def save(self, file_path: str) -> bool:
-        try:
-            cv2.imwrite(file_path, self.get_data())
-        except FileExistsError:
-            return False
-        return True
-
-
 def get_newest_image(cam, pixel_format):
     try:
         spinnaker_image = cam.GetNextImage()
@@ -200,7 +139,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
         model.eval()
 
         # create plots
-        fig, (im_ax, inference_ax) = plt.subplots(1, 2)
+        fig, inference_ax = plt.subplots()
 
         continue_streaming = [True]
 
@@ -227,7 +166,9 @@ def display_images(cam, labels, saved_model_file_path) -> None:
                 if retrieved_image is None:
                     break
 
-                tensor_image = F.to_tensor(retrieved_image.get_data())
+                image_data = RGB8Image.to_bgr(retrieved_image.get_data())
+
+                tensor_image = F.to_tensor(image_data)
                 tensor_image = tensor_image.to(device)
 
                 outputs = model([tensor_image])
@@ -253,10 +194,8 @@ def display_images(cam, labels, saved_model_file_path) -> None:
                 )
 
                 inference_ax.clear()
-                im_ax.clear()
 
-                inference_ax.imshow(retrieved_image.get_data())
-                im_ax.imshow(retrieved_image.get_data())
+                inference_ax.imshow(image_data)
 
                 draw_bboxes(
                     inference_ax,

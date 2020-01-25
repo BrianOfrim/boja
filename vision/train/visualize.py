@@ -215,7 +215,9 @@ def main(unused_argv):
     )
 
     # get the model using our helper function
-    model = _models.__dict__[flags.FLAGS.network](num_classes)
+    model = _models.__dict__[flags.FLAGS.network](
+        num_classes, box_score_thresh=flags.FLAGS.threshold, min_size=600, max_size=800,
+    )
 
     print("Loading model state from: %s" % saved_model_file_path)
 

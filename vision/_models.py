@@ -8,9 +8,11 @@ from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 __all__ = ["fasterrcnn_resnet50", "fasterrcnn_resnet34", "fasterrcnn_mobilenetv2"]
 
 
-def fasterrcnn_resnet50(num_classes):
+def fasterrcnn_resnet50(num_classes, **kwargs):
     # load a model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(
+        pretrained=True, **kwargs
+    )
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     # replace the pre-trained head with a new one
@@ -19,16 +21,16 @@ def fasterrcnn_resnet50(num_classes):
     return model
 
 
-def fasterrcnn_resnet34(num_classes):
+def fasterrcnn_resnet34(num_classes, **kwargs):
     backbone = resnet_fpn_backbone("resnet34", pretrained=True)
-    model = FasterRCNN(backbone, num_classes)
+    model = FasterRCNN(backbone, num_classes, **kwargs)
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
     return model
 
 
-def fasterrcnn_mobilenetv2(num_classes):
+def fasterrcnn_mobilenetv2(num_classes, **kwargs):
 
     backbone = torchvision.models.mobilenet_v2(pretrained=True).features
     backbone.out_channels = 1280
@@ -45,5 +47,6 @@ def fasterrcnn_mobilenetv2(num_classes):
         num_classes=num_classes,
         rpn_anchor_generator=anchor_generator,
         box_roi_pool=roi_pooler,
+        **kwargs
     )
     return model

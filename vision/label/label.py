@@ -8,14 +8,17 @@ from absl import app, flags
 import numpy as np
 import matplotlib.pyplot as plt
 
+from .._file_utils import (
+    create_output_dir,
+    get_files_from_dir,
+    get_highest_numbered_file,
+)
 from .gui import GUI, AnnotatedImage, Category
-
 from .._s3_utils import (
     s3_upload_files,
     s3_bucket_exists,
     s3_download_dir,
 )
-
 from .._settings import (
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
@@ -44,39 +47,8 @@ flags.DEFINE_string(
 flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
 
 
-def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
-    if not os.path.isdir(dir_path):
-        return []
-    file_paths = [
-        f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))
-    ]
-    if file_type is not None:
-        file_paths = [f for f in file_paths if f.lower().endswith(file_type.lower())]
-    return file_paths
-
-
-def manifest_file_sort(manifest_file) -> int:
-    match = re.match("[0-9]+", manifest_file)
-    if not match:
-        return 0
-    return int(match[0])
-
-
-def get_newest_manifest_path() -> str:
-    manifest_files = get_files_from_dir(
-        os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME)
-    )
-    manifest_files = [
-        f for f in manifest_files if f.lower().endswith(MANIFEST_FILE_TYPE)
-    ]
-    if len(manifest_files) == 0:
-        return None
-    newest_manifest_file = sorted(manifest_files, key=manifest_file_sort, reverse=True)[
-        0
-    ]
-    return os.path.join(
-        flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME, newest_manifest_file
-    )
+def get_newest_manifest_path(manifest_dir_path: str) -> str:
+    return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
 
 
 def save_outputs(
@@ -126,21 +98,6 @@ def save_outputs(
             [image.image_path for image in annotatedImages],
             flags.FLAGS.s3_data_dir + "/" + IMAGE_DIR_NAME,
         )
-
-
-def create_output_dir(dir_name) -> bool:
-    if not os.path.isdir(dir_name) or not os.path.exists(dir_name):
-        print("Creating output directory: %s" % dir_name)
-        try:
-            os.makedirs(dir_name)
-        except OSError:
-            print("Creation of the directory %s failed" % dir_name)
-            return False
-        else:
-            print("Successfully created the directory %s " % dir_name)
-            return True
-    else:
-        return True
 
 
 def main(unused_argv):
@@ -210,7 +167,9 @@ def main(unused_argv):
         print("Invalid input image directory")
         return
 
-    previous_manifest_file = get_newest_manifest_path()
+    previous_manifest_file = get_newest_manifest_path(
+        os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME)
+    )
     manifest_images = set()
     if previous_manifest_file is not None:
         with open(previous_manifest_file, "r") as manifest:

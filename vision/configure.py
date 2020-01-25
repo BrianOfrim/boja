@@ -5,6 +5,7 @@ from typing import List
 
 from absl import app, flags
 
+from ._file_utils import create_output_dir, get_files_from_dir
 from ._s3_utils import (
     s3_bucket_exists,
     s3_download_files,
@@ -12,7 +13,6 @@ from ._s3_utils import (
     s3_upload_files,
     s3_file_exists,
 )
-
 from ._settings import (
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
@@ -54,33 +54,6 @@ flags.DEFINE_string(
 )
 
 flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
-
-
-def create_output_dir(dir_name) -> bool:
-    if not os.path.isdir(dir_name) or not os.path.exists(dir_name):
-        print("Creating output directory: %s" % dir_name)
-        try:
-            os.makedirs(dir_name)
-        except OSError:
-            print("Creation of the directory %s failed" % dir_name)
-            return False
-        else:
-            print("Successfully created the directory %s " % dir_name)
-            return True
-    else:
-        print("Directory: %s already exists." % dir_name)
-        return True
-
-
-def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
-    if not os.path.isdir(dir_path):
-        return []
-    file_paths = [
-        f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))
-    ]
-    if file_type is not None:
-        file_paths = [f for f in file_paths if f.lower().endswith(file_type.lower())]
-    return file_paths
 
 
 def int_string_sort(file_name) -> int:

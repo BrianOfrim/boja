@@ -11,6 +11,7 @@ from genicam.gentl import TimeoutException
 from harvesters.core import Harvester
 import numpy as np
 
+from .._file_utils import create_output_dir
 from .._s3_utils import s3_upload_files, s3_bucket_exists
 
 from .._settings import IMAGE_DIR_NAME, IMAGE_FILE_TYPE, NETWORKS
@@ -222,22 +223,6 @@ def apply_camera_settings(cam) -> None:
         "Acquisition frame rate set to: %3.1f"
         % cam.remote_device.node_map.AcquisitionFrameRate.value
     )
-
-
-def create_output_dir(dir_name) -> bool:
-    if not os.path.isdir(dir_name) or not os.path.exists(dir_name):
-        print("Creating output directory: %s" % dir_name)
-        try:
-            os.makedirs(dir_name)
-        except OSError:
-            print("Creation of the directory %s failed" % dir_name)
-            return False
-        else:
-            print("Successfully created the directory %s " % dir_name)
-            return True
-    else:
-        print("Output directory exists.")
-        return True
 
 
 def main(unused_argv):

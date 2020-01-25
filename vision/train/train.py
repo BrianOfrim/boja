@@ -13,6 +13,7 @@ import torch
 
 from .datasets import BojaDataSet
 from .engine import train_one_epoch, evaluate
+from .._file_utils import create_output_dir, get_highest_numbered_file
 from .. import _models
 from .._s3_utils import (
     s3_bucket_exists,
@@ -74,52 +75,8 @@ def get_transform(train):
     return Compose(transforms)
 
 
-def get_files_from_dir(dir_path: str, file_type: str = None) -> List[str]:
-    if not os.path.isdir(dir_path):
-        return []
-    file_paths = [
-        f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))
-    ]
-    if file_type is not None:
-        file_paths = [f for f in file_paths if f.lower().endswith(file_type.lower())]
-    return file_paths
-
-
-def manifest_file_sort(manifest_file) -> int:
-    match = re.match("[0-9]+", manifest_file)
-    if not match:
-        return 0
-    return int(match[0])
-
-
 def get_newest_manifest_path(manifest_dir_path: str) -> str:
-    manifest_files = get_files_from_dir(manifest_dir_path)
-    manifest_files = [
-        f for f in manifest_files if f.lower().endswith(MANIFEST_FILE_TYPE)
-    ]
-    if len(manifest_files) == 0:
-        return None
-    newest_manifest_file = sorted(manifest_files, key=manifest_file_sort, reverse=True)[
-        0
-    ]
-    return os.path.join(
-        flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME, newest_manifest_file
-    )
-
-
-def create_output_dir(dir_name) -> bool:
-    if not os.path.isdir(dir_name) or not os.path.exists(dir_name):
-        print("Creating output directory: %s" % dir_name)
-        try:
-            os.makedirs(dir_name)
-        except OSError:
-            print("Creation of the directory %s failed" % dir_name)
-            return False
-        else:
-            print("Successfully created the directory %s " % dir_name)
-            return True
-    else:
-        return True
+    return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
 
 
 def main(unused_argv):

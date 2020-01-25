@@ -13,7 +13,7 @@ from .._file_utils import get_highest_numbered_file
 from .._image_utils import draw_bboxes
 from .. import _models
 from .transforms import ToTensor, RandomHorizontalFlip, Compose
-
+from .._s3_utils import s3_bucket_exists, s3_download_highest_numbered_file
 from .._settings import (
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
@@ -25,6 +25,13 @@ from .._settings import (
 )
 
 matplotlib.use("TKAgg")
+
+flags.DEFINE_string(
+    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
+)
+
+flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
+
 
 flags.DEFINE_string(
     "local_data_dir",
@@ -72,6 +79,31 @@ def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str
 
 
 def main(unused_argv):
+
+    use_s3 = True if flags.FLAGS.s3_bucket_name is not None else False
+
+    if use_s3:
+        if not s3_bucket_exists(flags.FLAGS.s3_bucket_name):
+            use_s3 = False
+            print(
+                "Bucket: %s either does not exist or you do not have access to it"
+                % flags.FLAGS.s3_bucket_name
+            )
+        else:
+            print(
+                "Bucket: %s exists and you have access to it"
+                % flags.FLAGS.s3_bucket_name
+            )
+
+    if use_s3:
+        # Get the newest model
+        s3_download_highest_numbered_file(
+            flags.FLAGS.s3_bucket_name,
+            "/".join([flags.FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            MODEL_STATE_FILE_TYPE,
+            flags.FLAGS.network,
+        )
 
     if not os.path.isfile(flags.FLAGS.label_file_path):
         print("Invalid category labels path.")

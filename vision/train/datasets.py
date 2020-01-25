@@ -28,11 +28,15 @@ class BojaDataSet(object):
         manifest_items = [
             item.strip() for item in open(manifest_file_path).read().splitlines()
         ]
-        # Filter out Invalid images and annotations with no bounding boxes
+        # Filter out Invalid images and annotations with no bounding boxes, ensure files exist
         manifest_items = [
             item
             for item in manifest_items
-            if item.split(",")[1].lower() != INVALID_ANNOTATION_FILE_IDENTIFIER
+            if os.path.isfile(os.path.join(self.image_dir_path, item.split(",")[0]))
+            and os.path.isfile(
+                os.path.join(self.annotation_dir_path, item.split(",")[1])
+            )
+            and item.split(",")[1].lower() != INVALID_ANNOTATION_FILE_IDENTIFIER
             and has_boxes(os.path.join(self.annotation_dir_path, item.split(",")[1]))
         ]
 

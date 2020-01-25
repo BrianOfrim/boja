@@ -268,6 +268,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
                     break
 
                 tensor_image = F.to_tensor(retrieved_image.get_data())
+                tensor_image = tensor_image.to(device)
 
                 outputs = model([tensor_image])
                 outputs = [

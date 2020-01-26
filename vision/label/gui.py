@@ -231,7 +231,6 @@ class GUI:
 
     def _display_image(self) -> None:
         img = Image.open(self.images[self.image_index].image_path)
-        print(img.size)
         self.display_image.set_data(img)
         self._reset_extent(img)
         self._update_title()

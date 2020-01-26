@@ -83,97 +83,92 @@ def key_press(event, continue_streaming):
 
 
 def display_images(cam, labels, saved_model_file_path) -> None:
-    try:
 
-        device = (
-            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        )
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-        # get the model using our helper function
-        model = _models.__dict__[flags.FLAGS.network](len(labels))
+    # get the model using our helper function
+    model = _models.__dict__[flags.FLAGS.network](len(labels))
 
-        print("Loading model state from: %s" % saved_model_file_path)
+    print("Loading model state from: %s" % saved_model_file_path)
 
-        model.load_state_dict(torch.load(saved_model_file_path))
+    model.load_state_dict(torch.load(saved_model_file_path))
 
-        # move model to the right device
-        model.to(device)
+    # move model to the right device
+    model.to(device)
 
-        model.eval()
+    model.eval()
 
-        # create plots
-        fig, inference_ax = plt.subplots()
+    # create plots
+    fig, inference_ax = plt.subplots()
 
-        continue_streaming = [True]
+    continue_streaming = [True]
 
-        fig.canvas.mpl_connect(
-            "key_press_event", lambda event: key_press(event, continue_streaming)
-        )
+    fig.canvas.mpl_connect(
+        "key_press_event", lambda event: key_press(event, continue_streaming)
+    )
 
-        print("Model state loaded")
+    print("Model state loaded")
 
-        label_colors = plt.get_cmap("hsv")(np.linspace(0, 0.9, len(labels)))
+    label_colors = plt.get_cmap("hsv")(np.linspace(0, 0.9, len(labels)))
 
-        print("Starting inference")
+    print("Starting inference")
 
-        print("Starting live stream.")
-        cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
-        cam.BeginAcquisition()
+    print("Starting live stream.")
+    cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
+    cam.BeginAcquisition()
 
-        pixel_format = cam.PixelFormat.GetCurrentEntry().GetSymbolic()
+    pixel_format = cam.PixelFormat.GetCurrentEntry().GetSymbolic()
 
-        with torch.no_grad():
-            while continue_streaming[0]:
-                retrieved_image = get_newest_image(cam, pixel_format)
+    with torch.no_grad():
+        while continue_streaming[0]:
+            retrieved_image = get_newest_image(cam, pixel_format)
 
-                if retrieved_image is None:
-                    break
+            if retrieved_image is None:
+                break
 
-                image_data = RGB8Image.to_bgr(retrieved_image.get_data())
+            image_data = RGB8Image.to_bgr(retrieved_image.get_data())
 
-                tensor_image = F.to_tensor(image_data)
-                tensor_image = tensor_image.to(device)
+            tensor_image = F.to_tensor(image_data)
+            tensor_image = tensor_image.to(device)
 
-                outputs = model([tensor_image])
-                outputs = [
-                    {k: v.to(torch.device("cpu")) for k, v in t.items()}
-                    for t in outputs
-                ]
+            outputs = model([tensor_image])
+            outputs = [
+                {k: v.to(torch.device("cpu")) for k, v in t.items()} for t in outputs
+            ]
 
-                # filter out the background labels and scores bellow threshold
-                filtered_output = [
-                    (
-                        outputs[0]["boxes"][j],
-                        outputs[0]["labels"][j],
-                        outputs[0]["scores"][j],
-                    )
-                    for j in range(len(outputs[0]["boxes"]))
-                    if outputs[0]["scores"][j] > flags.FLAGS.threshold
-                    and outputs[0]["labels"][j] > 0
-                ]
-
-                inference_boxes, inference_labels, inference_scores = (
-                    zip(*filtered_output) if len(filtered_output) > 0 else ([], [], [])
+            # filter out the background labels and scores bellow threshold
+            filtered_output = [
+                (
+                    outputs[0]["boxes"][j],
+                    outputs[0]["labels"][j],
+                    outputs[0]["scores"][j],
                 )
+                for j in range(len(outputs[0]["boxes"]))
+                if outputs[0]["scores"][j] > flags.FLAGS.threshold
+                and outputs[0]["labels"][j] > 0
+            ]
 
-                inference_ax.clear()
+            inference_boxes, inference_labels, inference_scores = (
+                zip(*filtered_output) if len(filtered_output) > 0 else ([], [], [])
+            )
 
-                inference_ax.imshow(image_data)
+            inference_ax.clear()
 
-                draw_bboxes(
-                    inference_ax,
-                    inference_boxes,
-                    inference_labels,
-                    labels,
-                    label_colors,
-                    inference_scores,
-                )
+            inference_ax.imshow(image_data)
 
-                plt.pause(0.001)
+            draw_bboxes(
+                inference_ax,
+                inference_boxes,
+                inference_labels,
+                labels,
+                label_colors,
+                inference_scores,
+            )
 
-    finally:
-        print("Ending live stream")
-        cam.EndAcquisition()
+            plt.pause(0.001)
+
+    print("Ending live stream")
+    cam.EndAcquisition()
 
 
 def apply_camera_settings(cam) -> None:

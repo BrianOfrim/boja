@@ -137,6 +137,8 @@ class GUI:
         self.corner2_vline = self.image_ax.axvline(linestyle="dashed", visible=False)
         self.corner2_hline = self.image_ax.axhline(linestyle="dashed", visible=False)
 
+        self.display_image = None
+
         self.undo_ax = self.fig.add_axes(self._get_utility_ax_rect(3))
         self.invalid_ax = self.fig.add_axes(self._get_utility_ax_rect(2))
         self.prev_ax = self.fig.add_axes(self._get_utility_ax_rect(1))
@@ -154,7 +156,12 @@ class GUI:
 
     def show(self) -> None:
         # Display the first image
-        self._display_image(self.images[self.image_index].image_path)
+
+        self.display_image = self.image_ax.imshow(
+            Image.open(self.images[self.image_index].image_path)
+        )
+
+        self._update_title()
         # Select the first category as default
         self.current_category = next(iter(self.categories))
         self.categories[self.current_category].select()
@@ -198,32 +205,56 @@ class GUI:
             if len(image.bboxes) > 0 or not image.valid
         ]
 
-    def _display_image(self, path) -> None:
-        img = Image.open(path)
-        self.image_ax.imshow(img)
+    def _update_title(self) -> None:
         self.image_ax.set_title(
-            "%s [%i/%i]" % (path.split("/")[-1], self.image_index + 1, len(self.images))
+            "%s [%i/%i]"
+            % (
+                self.images[self.image_index].image_path.split("/")[-1],
+                self.image_index + 1,
+                len(self.images),
+            )
         )
+
+    def _reset_extent(self, data):
+        ax = self.image_ax
+        dataShape = data.size
+        im = self.display_image
+
+        if im.origin == "upper":
+            im.set_extent((-0.5, dataShape[0] - 0.5, dataShape[1] - 0.5, -0.5))
+            ax.set_xlim((-0.5, dataShape[0] - 0.5))
+            ax.set_ylim((dataShape[1] - 0.5, -0.5))
+        else:
+            im.set_extent((-0.5, dataShape[0] - 0.5, -0.5, dataShape[1] - 0.5))
+            ax.set_xlim((-0.5, dataShape[0] - 0.5))
+            ax.set_ylim((-0.5, dataShape[1] - 0.5))
+
+    def _display_image(self) -> None:
+        img = Image.open(self.images[self.image_index].image_path)
+        print(img.size)
+        self.display_image.set_data(img)
+        self._reset_extent(img)
+        self._update_title()
         self._refresh()
 
-    def _next_image(self, event) -> None:
+    def _next_image(self) -> None:
         self.images[self.image_index].remove_incomplete_boxes()
         self._clear_all_lines()
         if self.image_index == len(self.images) - 1:
             plt.close()
         else:
             self.image_index += 1
-            self._display_image(self.images[self.image_index].image_path)
-            self._draw_bounding_boxes(self.images[self.image_index].bboxes)
+            self._display_image()
+            self._draw_bounding_boxes()
             self._draw_image_border()
 
-    def _prev_image(self, event) -> None:
+    def _prev_image(self) -> None:
         self._clear_all_lines()
         if self.image_index != 0:
             self.images[self.image_index].remove_incomplete_boxes()
             self.image_index -= 1
-            self._display_image(self.images[self.image_index].image_path)
-            self._draw_bounding_boxes(self.images[self.image_index].bboxes)
+            self._display_image()
+            self._draw_bounding_boxes()
             self._draw_image_border()
 
     def _format_corners(self, bbox) -> None:
@@ -262,11 +293,11 @@ class GUI:
         self.corner2_hline.set_visible(True)
         self.corner2_vline.set_visible(True)
 
-    def _draw_bounding_boxes(self, bboxes) -> None:
+    def _draw_bounding_boxes(self) -> None:
         # clear all current boxes
         [p.remove() for p in reversed(self.image_ax.patches)]
         # redraw the boxes
-        for bbox in bboxes:
+        for bbox in self.images[self.image_index].bboxes:
             if bbox.corner2 is None:
                 continue
             height = bbox.corner2.y - bbox.corner1.y
@@ -288,23 +319,28 @@ class GUI:
         if not self.images[self.image_index].valid:
             print("Image marked as invalid. Cannot draw bounding box")
             return
-        bboxes = self.images[self.image_index].bboxes
-        if len(bboxes) > 0 and bboxes[-1].corner2 is None:
+        if (
+            len(self.images[self.image_index].bboxes) > 0
+            and self.images[self.image_index].bboxes[-1].corner2 is None
+        ):
             self._clear_all_lines()
-            bboxes[-1].corner2 = BBoxCorner(
+            self.images[self.image_index].bboxes[-1].corner2 = BBoxCorner(
                 math.floor(event.xdata), math.floor(event.ydata)
             )
-            self._format_corners(bboxes[-1])
-            self._draw_bounding_boxes(bboxes)
+            self._format_corners(self.images[self.image_index].bboxes[-1])
+            self._draw_bounding_boxes()
         else:
-            bboxes.append(
+            self.images[self.image_index].bboxes.append(
                 BBox(
                     BBoxCorner(math.floor(event.xdata), math.floor(event.ydata)),
                     None,
                     self.current_category,
                 )
             )
-            self._draw_corner_1_lines(bboxes[-1].corner1.x, bboxes[-1].corner1.y)
+            self._draw_corner_1_lines(
+                self.images[self.image_index].bboxes[-1].corner1.x,
+                self.images[self.image_index].bboxes[-1].corner1.y,
+            )
 
     def _draw_invalid_image_border(self) -> None:
         for side in self.BOX_SIDES:
@@ -322,14 +358,14 @@ class GUI:
         else:
             self._draw_valid_image_border()
 
-    def _toggle_image_validation(self, event) -> None:
+    def _toggle_image_validation(self) -> None:
         self.images[self.image_index].valid = not self.images[self.image_index].valid
         self.images[self.image_index].bboxes.clear()
         self._clear_all_lines()
-        self._draw_bounding_boxes(self.images[self.image_index].bboxes)
+        self._draw_bounding_boxes()
         self._draw_image_border()
 
-    def _undo_latest(self, event) -> None:
+    def _undo_latest(self) -> None:
         self._clear_all_lines()
         if len(self.images[self.image_index].bboxes) == 0:
             print("No more bounding boxes to clear")
@@ -342,7 +378,7 @@ class GUI:
                 self.images[self.image_index].bboxes[-1].corner1.x,
                 self.images[self.image_index].bboxes[-1].corner1.y,
             )
-        self._draw_bounding_boxes(self.images[self.image_index].bboxes)
+        self._draw_bounding_boxes()
 
     def _refresh(self) -> None:
         if plt.fignum_exists(self.fig.number):
@@ -355,13 +391,13 @@ class GUI:
         elif event.inaxes == self.image_ax:
             self._handle_bbox_entry(event)
         elif event.inaxes == self.next_ax:
-            self._next_image(event)
+            self._next_image()
         elif event.inaxes == self.prev_ax:
-            self._prev_image(event)
+            self._prev_image()
         elif event.inaxes == self.invalid_ax:
-            self._toggle_image_validation(event)
+            self._toggle_image_validation()
         elif event.inaxes == self.undo_ax:
-            self._undo_latest(event)
+            self._undo_latest()
         else:
             for category_name, category in self.categories.items():
                 if event.inaxes == category.ax:
@@ -373,11 +409,11 @@ class GUI:
 
     def _on_keypress(self, event) -> None:
         if event.key == "d":
-            self._next_image(event)
+            self._next_image()
         elif event.key == "a":
-            self._prev_image(event)
+            self._prev_image()
         elif event.key == "w" or event.key == "escape":
-            self._undo_latest(event)
+            self._undo_latest()
         for category_name, category in self.categories.items():
             if event.key == category.keyboard_string:
                 self.current_category = category_name

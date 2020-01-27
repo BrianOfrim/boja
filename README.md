@@ -3,6 +3,8 @@ An end to end object detection tool. All the way from capturing and labeling a d
 
 This package makes use of that harvesters machine vision image acquisition library for capturing images so a GenICam compliant machine vision camera is required.
 
+Boja translates to "let's see" in Korean  
+
 ## Getting Started
 ### Installing Dependencies
 **The following will not work for arm64/aarch64 (Jetson Tx2 etc). For arm64 specific instructions see ARM64 section.**
@@ -62,6 +64,50 @@ https://devtalk.nvidia.com/default/topic/1049071/jetson-nano/pytorch-for-jetson-
 Since the harvesters library's genicam dependency is not available for arm yet in order to use the capture and predict functionality of boja we will have to use a vendor specific image acquisition library. For FLIR machine vision cameras we can use Spinnaker and PySpin. Included with the boja package there are pySpin variants of the capture and predict modules.
 Install the latest Spinnaker **and** PySpin from:  
 https://www.flir.ca/products/spinnaker-sdk/
+
+
+## Usage
+### Configure
+Boja expects a certain data file structure for file input and output.  
+Data file structure:  
+
+
+├── **local_data_dir**  
+│   ├── annotations  
+│   ├── images  
+│   ├── logs 
+│   ├── images  
+│   ├── manifests  
+│   └── modelstates  
+
+This structure will be created by running the configure module with:  
+```
+$ python -m vision.configure
+```
+optional flags include **--local_data_dir** where you can specify where the  
+data files will be kept locally. By default this value is:  
+```
+~/boja/data
+```
+
+#### AWS S3 Integration
+This project is BYOB (bring your own bucket).  
+The configure module, like most other modules in the boja package has the  
+optional flag **--s3_bucket_name**. You can use any s3 bucket that you have  
+access to. This will allow boja to download preexisting data from the s3  
+bucket and also to upload generated data. You can specify the base directory  
+of your data within the s3 bucket with the flag **--s3_data_dir**, which by  
+default will be:
+```
+data
+```
+### Capture
+
+### Label
+
+### Train
+
+### Deploy
 
 
 

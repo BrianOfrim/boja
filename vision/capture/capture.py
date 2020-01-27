@@ -17,6 +17,8 @@ from .._s3_utils import s3_upload_files, s3_bucket_exists
 
 from .._settings import (
     DEFAULT_LOCAL_DATA_DIR,
+    DEFAULT_S3_DATA_DIR,
+    DEFAULT_GENTL_PRODUCER_PATH,
     IMAGE_DIR_NAME,
     IMAGE_FILE_TYPE,
     NETWORKS,
@@ -26,7 +28,7 @@ WINDOW_NAME = "Capture"
 
 flags.DEFINE_string(
     "gentl_producer_path",
-    "/opt/mvIMPACT_Acquire/lib/x86_64/mvGenTLProducer.cti",
+    DEFAULT_GENTL_PRODUCER_PATH,
     "Path to the GenTL producer .cti file to use.",
 )
 
@@ -44,7 +46,9 @@ flags.DEFINE_string(
 
 flags.DEFINE_string("s3_bucket_name", None, "S3 bucket to send images to.")
 
-flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
+flags.DEFINE_string(
+    "s3_data_dir", DEFAULT_S3_DATA_DIR, "Prefix of the s3 data objects."
+)
 
 flags.DEFINE_enum(
     "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",

@@ -16,6 +16,8 @@ from .transforms import ToTensor, RandomHorizontalFlip, Compose
 from .._s3_utils import s3_bucket_exists, s3_download_highest_numbered_file
 from .._settings import (
     DEFAULT_LOCAL_DATA_DIR,
+    DEFAULT_S3_DATA_DIR,
+    LABEL_FILE_NAME,
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
     MANIFEST_DIR_NAME,
@@ -31,7 +33,9 @@ flags.DEFINE_string(
     "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
 )
 
-flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
+flags.DEFINE_string(
+    "s3_data_dir", DEFAULT_S3_DATA_DIR, "Prefix of the s3 data objects."
+)
 
 
 flags.DEFINE_string(

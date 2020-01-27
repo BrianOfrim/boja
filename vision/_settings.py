@@ -2,6 +2,7 @@ import os
 
 # Constants that are shared throughout the package
 DEFAULT_LOCAL_DATA_DIR = os.path.join(os.path.expanduser("~"), "boja", "data")
+DEFAULT_S3_DATA_DIR = "data"
 
 IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"
@@ -23,3 +24,5 @@ NETWORKS = [
     "fasterrcnn_resnet34",
     "fasterrcnn_mobilenetv2",
 ]
+
+DEFAULT_GENTL_PRODUCER_PATH = "/opt/mvIMPACT_Acquire/lib/x86_64/mvGenTLProducer.cti"

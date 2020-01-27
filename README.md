@@ -93,21 +93,20 @@ data files will be kept locally. By default this value is:
 
 #### AWS S3 Integration
 This project is BYOB (bring your own bucket).  
-The configure module, like most other modules in the boja package has the  
-optional flag **--s3_bucket_name**. You can use any s3 bucket that you have  
-access to. This will allow boja to download preexisting data from the s3  
-bucket and also to upload generated data. You can specify the base directory  
-of your data within the s3 bucket with the flag **--s3_data_dir**, which by  
-default will be:
+The configure module, like most other modules in the boja package has the optional  
+flag **--s3_bucket_name**. You can use any s3 bucket that you have access to. This will  
+allow boja to download preexisting data from the s3  bucket and also to upload generated  
+data. You can specify the base directory of your data within the s3 bucket with the  
+flag **--s3_data_dir**, which by default will be:
 ```
 data
 ```
 The s3 data sub directory structure is a mirror of the local data subdirectory  
 structure.
 
-If this module is run with a valid s3 bucket name argument then the local data
-and s3 data will be synced. All local data missing from s3 will be uploaded and
-all s3 data missing locally will be downloaded.
+If this module is run with a valid s3 bucket name argument then the local data and s3   
+data will be synced. All local data missing from s3 will be uploaded and all s3 data   
+missing locally will be downloaded.
 
 To view the details of the optional parameters run:  
 ```
@@ -127,6 +126,9 @@ The flag **--help** can be used to display all optional flags.
 
 ### Label
 A matplotlib based GUI utility for annotating images with labels and bounding boxes.
+
+![LabelSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/labelImage_480.jpg)
+
 For this module a labels.txt file required. This file has to be placed in the local  
 data directory
 ```
@@ -211,7 +213,27 @@ helpful to visualize the model outputs side by side with the ground truth.
 If a GPU is available on the system then it will be used to accelerate the model.
 
 ### Deploy
+The end goal of this process is to deploy our trained object detection network on a 
+live image feed. There are two version of the deployment module. One is for general use 
+with all GenIcam compliant and uses harvesters and the other is for use specifically with
+FLIR machine vision cameras and uses PySpin. The harvesters version is not compatible   
+with Arm64 based devices by the PySpin version is.
 
+To run the harvesters version:  
+```
+$ python -m vision.predict.predict
+```
+
+To run the PySpin version:  
+```
+$ python -m vision.predict.predict_spin
+```
+
+The backbone network to be used with Faster RCNN can be specified with the **--network**
+flag. The user can choose to supply a model state path with the flag **--model_path**  
+if not then the newest saved model that matches the network type will be loaded.  
+If an s3 bucket is supplied with **--s3_bucket_name** then the newest model state that  
+matches the network type will be downloaded from s3 if it is not already present locally.  
 
 
 

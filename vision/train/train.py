@@ -243,7 +243,7 @@ def main(unused_argv):
     print("Model state saved at: %s" % model_state_file_path)
 
     plt.plot(average_persision, label="AP: IoU=0.50:0.95 maxDets=100")
-    plt.plot(average_recall, label="AP: IoU=0.50:0.95 maxDets=100")
+    plt.plot(average_recall, label="AR: IoU=0.50:0.95 maxDets=100")
     plt.legend(loc="lower right")
     plt.title("Evaluation data from %s" % run_name)
 

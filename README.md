@@ -124,13 +124,18 @@ python -m vision.configure --help
 
 ### Capture
 This module is used to capture, display, and save images to add to the training dataset. 
-If the flag **--s3_bucket_name** is used then all captured images will be both saved 
-locally and uploaded to s3.
+
+ ![CaptureSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/captureSample_480.jpg)
 
 To capture image data:  
 ```
 $ python -m vision.capture.capture
 ```
+The press enter to save images. Press escape to exit.
+
+If the flag **--s3_bucket_name** is used then all captured images will be both
+saved locally and uploaded to s3.
+
 The flag **--help** can be used to display all optional flags.  
 
 ### Label
@@ -216,7 +221,9 @@ state and the training evaluation plot will be uploaded to S3.
 
 
 #### Visualization
-To get an idea of how our model is preforming it can help to see it in action.  
+To get an idea of how our model is preforming it can help to see it in action. 
+ ![VisualizeSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/visualizeSample_480.jpg)
+
 To run the trained model on the training/evaluation data set:  
 ```
 $ python -m vision.train.visualize
@@ -230,7 +237,11 @@ If a GPU is available on the system then it will be used to accelerate the model
 
 ### Deploy
 The end goal of this process is to deploy our trained object detection network on a 
-live image feed. There are two version of the deployment module. One is for general use 
+live image feed. 
+
+ ![PredictSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/predictSample_480.jpg)
+
+There are two version of the deployment module. One is for general use 
 with all GenIcam compliant and uses harvesters and the other is for use specifically with 
 FLIR machine vision cameras and uses PySpin. The harvesters version is not compatible 
 with Arm64 based devices by the PySpin version is.

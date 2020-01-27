@@ -87,7 +87,7 @@ class RGB8Image:
 
     @staticmethod
     def to_bgr(image_data: np.ndarray) -> np.ndarray:
-        return cv2.cvtColor(image_data, cv2.COLOR_RGB2BGE)
+        return cv2.cvtColor(image_data, cv2.COLOR_RGB2BGR)
 
 
 def draw_bboxes(

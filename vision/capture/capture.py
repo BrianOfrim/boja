@@ -81,6 +81,7 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
     try:
         cam.start_image_acquisition()
         print("Acquisition started.")
+        print("Press enter to save images. Press escape to exit.")
         while True:
             retrieved_image = get_newest_image(cam)
             if retrieved_image is None:

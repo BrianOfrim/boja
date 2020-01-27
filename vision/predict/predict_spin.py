@@ -102,6 +102,8 @@ def display_images(cam, labels, saved_model_file_path) -> None:
     # create plots
     fig, inference_ax = plt.subplots()
 
+    fig.canvas.set_window_title("Predict")
+
     continue_streaming = [True]
 
     fig.canvas.mpl_connect(

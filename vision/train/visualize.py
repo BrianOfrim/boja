@@ -180,6 +180,8 @@ def main(unused_argv):
     # create plots
     fig, (ground_truth_ax, inference_ax) = plt.subplots(1, 2)
 
+    fig.canvas.set_window_title("Visualize")
+
     label_colors = plt.get_cmap("hsv")(np.linspace(0, 0.9, len(labels)))
 
     with torch.no_grad():

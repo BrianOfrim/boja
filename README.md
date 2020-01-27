@@ -127,10 +127,22 @@ This module is used to capture, display, and save images to add to the training 
 
  ![CaptureSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/captureSample_480.jpg)
 
-To capture image data:  
+
+There are two version of the capture module. One uses harvesters and is for general use 
+with all GenIcam compliant machine vision cameras and the other uses PySpin and is for use 
+specifically with FLIR machine vision cameras. The harvesters version is not compatible
+with Arm64 based devices by the PySpin version is.
+
+To to use the harvesters version:  
 ```
-$ python -m vision.capture.capture
+$ python -m vision.capture.capture_harv
 ```
+
+To to use the PySpin version:  
+```
+$ python -m vision.capture.capture_spin
+```
+
 The press enter to save images. Press escape to exit.
 
 If the flag **--s3_bucket_name** is used then all captured images will be both
@@ -241,14 +253,14 @@ live image feed.
 
  ![PredictSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/predictSample_480.jpg)
 
-There are two version of the deployment module. One is for general use 
-with all GenIcam compliant and uses harvesters and the other is for use specifically with 
-FLIR machine vision cameras and uses PySpin. The harvesters version is not compatible 
+There are two version of the deployment module. One uses harvesters and is for general use 
+with all GenIcam compliant machine vision cameras and the other uses PySpin and is for use 
+specifically with FLIR machine vision cameras. The harvesters version is not compatible
 with Arm64 based devices by the PySpin version is.
 
 To run the harvesters version:  
 ```
-$ python -m vision.predict.predict
+$ python -m vision.predict.predict_harv
 ```
 
 To run the PySpin version:  

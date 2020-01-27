@@ -14,6 +14,7 @@ from ._s3_utils import (
     s3_file_exists,
 )
 from ._settings import (
+    DEFAULT_LOCAL_DATA_DIR,
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
     MANIFEST_DIR_NAME,
@@ -27,9 +28,7 @@ from ._settings import (
 )
 
 flags.DEFINE_string(
-    "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "boja", "data"),
-    "Local data directory.",
+    "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local data directory.",
 )
 
 flags.DEFINE_string(

@@ -15,6 +15,7 @@ from .. import _models
 from .transforms import ToTensor, RandomHorizontalFlip, Compose
 from .._s3_utils import s3_bucket_exists, s3_download_highest_numbered_file
 from .._settings import (
+    DEFAULT_LOCAL_DATA_DIR,
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
     MANIFEST_DIR_NAME,
@@ -34,15 +35,7 @@ flags.DEFINE_string("s3_data_dir", "data", "Prefix of the s3 data objects.")
 
 
 flags.DEFINE_string(
-    "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "boja", "data"),
-    "Local data directory.",
-)
-
-flags.DEFINE_string(
-    "label_file_path",
-    os.path.join(os.path.expanduser("~"), "boja", "data", "labels.txt"),
-    "Path to the file containing the category labels.",
+    "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local data directory.",
 )
 
 flags.DEFINE_string(
@@ -105,16 +98,16 @@ def main(unused_argv):
             flags.FLAGS.network,
         )
 
-    if not os.path.isfile(flags.FLAGS.label_file_path):
-        print("Invalid category labels path.")
+    label_file_path = os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)
+    if not os.path.isfile(label_file_path):
+        print("Missing file %s" % label_file_path)
         return
 
-    labels = [
-        label.strip() for label in open(flags.FLAGS.label_file_path).read().splitlines()
-    ]
+    # read in the category labels
+    labels = open(label_file_path).read().splitlines()
 
     if len(labels) == 0:
-        print("No labels are present in %s" % flags.FLAGS.label_file_path)
+        print("No label categories found in %s" % label_file_path)
         return
 
     # Add the background as the first class

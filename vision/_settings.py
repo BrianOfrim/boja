@@ -1,4 +1,8 @@
+import os
+
 # Constants that are shared throughout the package
+DEFAULT_LOCAL_DATA_DIR = os.path.join(os.path.expanduser("~"), "boja", "data")
+
 IMAGE_DIR_NAME = "images"
 ANNOTATION_DIR_NAME = "annotations"
 MANIFEST_DIR_NAME = "manifests"

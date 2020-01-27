@@ -64,3 +64,5 @@ Install the latest Spinnaker **and** PySpin from:
 https://www.flir.ca/products/spinnaker-sdk/
 
 
+
+

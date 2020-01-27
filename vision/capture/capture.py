@@ -15,7 +15,12 @@ from .._file_utils import create_output_dir
 from .._image_utils import RGB8Image
 from .._s3_utils import s3_upload_files, s3_bucket_exists
 
-from .._settings import IMAGE_DIR_NAME, IMAGE_FILE_TYPE, NETWORKS
+from .._settings import (
+    DEFAULT_LOCAL_DATA_DIR,
+    IMAGE_DIR_NAME,
+    IMAGE_FILE_TYPE,
+    NETWORKS,
+)
 
 WINDOW_NAME = "Capture"
 
@@ -33,7 +38,7 @@ flags.DEFINE_integer("frame_rate", 30, "Frame rate to acquire images at.")
 
 flags.DEFINE_string(
     "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "boja", "data"),
+    DEFAULT_LOCAL_DATA_DIR,
     "Local parent directory of the image directory to store images.",
 )
 
@@ -105,27 +110,27 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
 
 
 def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
-    try:
-        while True:
-            image = save_queue.get(block=True)
-            if image is None:
-                break
-            file_path = os.path.join(
-                flags.FLAGS.local_data_dir,
-                IMAGE_DIR_NAME,
-                "%i.%s" % (time.time(), IMAGE_FILE_TYPE),
-            )
-            save_successfull = image.save(file_path)
-            print("Image saved at: %s" % file_path)
 
-            if use_s3 and save_successfull:
-                s3_upload_files(
-                    flags.FLAGS.s3_bucket_name,
-                    [file_path],
-                    "/".join([flags.FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
-                )
-    finally:
-        print("Saving complete.")
+    while True:
+        image = save_queue.get(block=True)
+        if image is None:
+            break
+        file_path = os.path.join(
+            flags.FLAGS.local_data_dir,
+            IMAGE_DIR_NAME,
+            "%i.%s" % (time.time(), IMAGE_FILE_TYPE),
+        )
+        save_successfull = image.save(file_path)
+        print("Image saved at: %s" % file_path)
+
+        if use_s3 and save_successfull:
+            s3_upload_files(
+                flags.FLAGS.s3_bucket_name,
+                [file_path],
+                "/".join([flags.FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
+            )
+
+    print("Saving complete.")
 
 
 def apply_camera_settings(cam) -> None:

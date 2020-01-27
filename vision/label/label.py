@@ -20,6 +20,8 @@ from .._s3_utils import (
     s3_download_dir,
 )
 from .._settings import (
+    DEFAULT_LOCAL_DATA_DIR,
+    LABEL_FILE_NAME,
     IMAGE_DIR_NAME,
     ANNOTATION_DIR_NAME,
     MANIFEST_DIR_NAME,
@@ -29,15 +31,7 @@ from .._settings import (
 )
 
 flags.DEFINE_string(
-    "label_file_path",
-    os.path.join(os.path.expanduser("~"), "boja", "data", "labels.txt"),
-    "Path to the file containing the category labels.",
-)
-
-flags.DEFINE_string(
-    "local_data_dir",
-    os.path.join(os.path.expanduser("~"), "boja", "data"),
-    "Local directory of the data to label.",
+    "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local directory of the data to label.",
 )
 
 flags.DEFINE_string(
@@ -147,15 +141,16 @@ def main(unused_argv):
             MANIFEST_FILE_TYPE,
         )
 
-    if not os.path.isfile(flags.FLAGS.label_file_path):
-        print("Invalid category labels path.")
+    label_file_path = os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)
+    if not os.path.isfile(label_file_path):
+        print("Missing file %s" % label_file_path)
         return
 
     # read in the category labels
-    category_labels = open(flags.FLAGS.label_file_path).read().splitlines()
+    category_labels = open(label_file_path).read().splitlines()
 
     if len(category_labels) == 0:
-        print("No label categories found")
+        print("No label categories found in %s" % label_file_path)
         return
 
     category_colors = plt.get_cmap("hsv")(np.linspace(0, 0.9, len(category_labels)))

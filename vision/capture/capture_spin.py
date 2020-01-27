@@ -7,14 +7,12 @@ import queue
 
 from absl import app, flags
 from cv2 import cv2
-from genicam.gentl import TimeoutException
-from harvesters.core import Harvester
 import numpy as np
+import PySpin
 
 from .._file_utils import create_output_dir
 from .._image_utils import RGB8Image
 from .._s3_utils import s3_upload_files, s3_bucket_exists
-
 from .._settings import (
     DEFAULT_LOCAL_DATA_DIR,
     DEFAULT_S3_DATA_DIR,
@@ -55,21 +53,17 @@ flags.DEFINE_enum(
 )
 
 
-def get_newest_image(cam):
+def get_newest_image(cam, pixel_format):
     try:
-        retrieved_image = None
-        with cam.fetch_buffer() as buffer:
-            component = buffer.payload.components[0]
-            retrieved_image = RGB8Image(
-                component.width,
-                component.height,
-                component.data_format,
-                component.data.copy(),
-            )
+        spinnaker_image = cam.GetNextImage()
+        retrieved_image = RGB8Image(
+            spinnaker_image.GetWidth(),
+            spinnaker_image.GetHeight(),
+            pixel_format,
+            spinnaker_image.GetData().copy(),
+        )
+        spinnaker_image.Release()
         return retrieved_image
-    except TimeoutException:
-        print("Timeout ocurred waiting for image.")
-        return None
     except ValueError as err:
         print(err)
         return None
@@ -78,12 +72,15 @@ def get_newest_image(cam):
 def acquire_images(cam, save_queue: queue.Queue) -> None:
     cv2.namedWindow(WINDOW_NAME)
     cv2.moveWindow(WINDOW_NAME, 0, 0)
-
-    cam.start_image_acquisition()
+    cam.AcquisitionMode.SetValue(PySpin.AcquisitionMode_Continuous)
+    cam.BeginAcquisition()
     print("Acquisition started.")
     print("Press enter to save images. Press escape to exit.")
+
+    pixel_format = cam.PixelFormat.GetCurrentEntry().GetSymbolic()
+
     while True:
-        retrieved_image = get_newest_image(cam)
+        retrieved_image = get_newest_image(cam, pixel_format)
         if retrieved_image is None:
             break
 
@@ -109,7 +106,7 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
 
     save_queue.put(None)
     cv2.destroyWindow(WINDOW_NAME)
-    cam.stop_image_acquisition()
+    cam.EndAcquisition()
     print("Acquisition Ended.")
 
 
@@ -139,18 +136,40 @@ def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
 
 def apply_camera_settings(cam) -> None:
     # Configure newest only buffer handling
-    cam.keep_latest = True
-    cam.num_filled_buffers_to_hold = 1
+    s_node_map = cam.GetTLStreamNodeMap()
+
+    # Retrieve Buffer Handling Mode Information
+    handling_mode = PySpin.CEnumerationPtr(
+        s_node_map.GetNode("StreamBufferHandlingMode")
+    )
+    handling_mode_entry = handling_mode.GetEntryByName("NewestOnly")
+    handling_mode.SetIntValue(handling_mode_entry.GetValue())
+
+    # Set stream buffer Count Mode to manual
+    stream_buffer_count_mode = PySpin.CEnumerationPtr(
+        s_node_map.GetNode("StreamBufferCountMode")
+    )
+    stream_buffer_count_mode_manual = PySpin.CEnumEntryPtr(
+        stream_buffer_count_mode.GetEntryByName("Manual")
+    )
+    stream_buffer_count_mode.SetIntValue(stream_buffer_count_mode_manual.GetValue())
+
+    # Retrieve and modify Stream Buffer Count
+    buffer_count = PySpin.CIntegerPtr(s_node_map.GetNode("StreamBufferCountManual"))
+
+    buffer_count.SetValue(3)
+
+    # Display Buffer Info
+    print("Buffer Handling Mode: %s" % handling_mode_entry.GetDisplayName())
+    print("Buffer Count: %d" % buffer_count.GetValue())
+    print("Maximum Buffer Count: %d" % buffer_count.GetMax())
 
     # Configure frame rate
-    cam.remote_device.node_map.AcquisitionFrameRateEnable.value = True
-    cam.remote_device.node_map.AcquisitionFrameRate.value = min(
-        flags.FLAGS.frame_rate, cam.remote_device.node_map.AcquisitionFrameRate.max
+    cam.AcquisitionFrameRateEnable.SetValue(True)
+    cam.AcquisitionFrameRate.SetValue(
+        min(flags.FLAGS.frame_rate, cam.AcquisitionFrameRate.GetMax())
     )
-    print(
-        "Acquisition frame rate set to: %3.1f"
-        % cam.remote_device.node_map.AcquisitionFrameRate.value
-    )
+    print("Acquisition frame rate set to: %3.1f" % cam.AcquisitionFrameRate.GetValue())
 
 
 def main(unused_argv):
@@ -174,24 +193,30 @@ def main(unused_argv):
                 % flags.FLAGS.s3_bucket_name
             )
 
-    h = Harvester()
-    h.add_cti_file(flags.FLAGS.gentl_producer_path)
-    if len(h.cti_files) == 0:
-        print("No valid cti file found at %s" % flags.FLAGS.gentl_producer_path)
-        h.reset()
+    # Retrieve singleton reference to system object
+    system = PySpin.System.GetInstance()
+
+    # Retrieve list of cameras from the system
+    cam_list = system.GetCameras()
+
+    num_cameras = cam_list.GetSize()
+
+    print("Number of cameras detected: %d" % num_cameras)
+    # Finish if there are no cameras
+    if num_cameras == 0:
+        # Clear camera list before releasing system
+        cam_list.Clear()
+
+        # Release system instance
+        system.ReleaseInstance()
+
+        print("Not enough cameras!")
+        input("Done! Press Enter to exit...")
         return
-    print("Currently available genTL Producer CTI files: ", h.cti_files)
 
-    h.update_device_info_list()
-    if len(h.device_info_list) == 0:
-        print("No compatible devices detected.")
-        h.reset()
-        return
+    cam = cam_list.GetByIndex(0)
 
-    print("Available devices List: ", h.device_info_list)
-    print("Using device: ", h.device_info_list[0])
-
-    cam = h.create_image_acquirer(list_index=0)
+    cam.Init()
 
     apply_camera_settings(cam)
 
@@ -205,9 +230,11 @@ def main(unused_argv):
 
     save_thread.join()
 
-    # clean up
-    cam.destroy()
-    h.reset()
+    cam.DeInit()
+
+    del cam
+    cam_list.Clear()
+    system.ReleaseInstance()
 
     print("Exiting.")
 

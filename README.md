@@ -222,7 +222,7 @@ state and the training evaluation plot will be uploaded to S3.
 
 #### Visualization
 To get an idea of how our model is preforming it can help to see it in action. 
- ![VisualizeSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/visualizeSample_480.jpg)
+ ![VisualizeSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/visualizeSample_640.jpg)
 
 To run the trained model on the training/evaluation data set:  
 ```

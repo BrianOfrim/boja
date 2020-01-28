@@ -5,7 +5,11 @@ of images to training and deploying an object detection neural network.
 This package makes use of that harvesters machine vision image acquisition library 
 for capturing images so a GenICam compliant machine vision camera is required. 
 
-Boja translates to "let's see" in Korean.  
+Boja translates to "let's see" in Korean. 
+
+**Here is an overview of the boja pipeline:**  
+
+ ![bojaPipeline](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/bojaPipeline.jpg)
 
 ## Getting Started
 ### Installing Dependencies

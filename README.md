@@ -222,7 +222,8 @@ $ python -m vision.train.train
 At the end of training and evaluation, the model state will be saved so that we can 
 load it later for deployment. A plot of the Average Precision and Recall over the 
 training/evaluation epochs will be generated and saved as well for comparison against 
-previously trained models.
+previously trained models. Here is an example log chart:  
+ ![LogSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/sampleLogChart.jpg)
 
 If there is a cuda enabled GPU on the system that is visible to pyTorch then it will 
 but utilized to accelerate the training and evaluation process.

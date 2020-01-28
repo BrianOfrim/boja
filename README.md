@@ -232,7 +232,6 @@ If the **-s3_bucket_name** flag is used then the latest images, annotations and 
 will be loaded from s3 prior to training. Then at the end of training the trained model's 
 state and the training evaluation plot will be uploaded to S3.
 
-
 #### Visualization
 To get an idea of how our model is preforming it can help to see it in action. 
  ![VisualizeSample](https://raw.githubusercontent.com/BrianOfrim/boja/master/docs/assets/visualizeSample_640.jpg)

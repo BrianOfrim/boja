@@ -1,4 +1,8 @@
-from cv2 import cv2
+import os
+if os.uname().machine == "aarch64":
+    import cv2
+else:
+    from cv2 import cv2
 import numpy as np
 import matplotlib
 import matplotlib.patches as patches

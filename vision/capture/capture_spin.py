@@ -6,10 +6,12 @@ import typing
 import queue
 
 from absl import app, flags
-from cv2 import cv2
+if os.uname().machine == "aarch64":
+    import cv2 
+else:
+    from cv2 import cv2 
 import numpy as np
 import PySpin
-
 from .._file_utils import create_output_dir
 from .._image_utils import RGB8Image
 from .._s3_utils import s3_upload_files, s3_bucket_exists
@@ -88,13 +90,12 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
             WINDOW_NAME, retrieved_image.get_resized_image(flags.FLAGS.display_width),
         )
         keypress = cv2.waitKey(1)
-
         if keypress == 27:
             # escape key pressed
             break
-        elif cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
-            # x button clicked
-            break
+#        elif cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
+#            # x button clicked
+#            break
         elif keypress == 13:
             # Enter key pressed
             cv2.imshow(

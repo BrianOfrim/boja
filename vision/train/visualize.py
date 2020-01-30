@@ -162,8 +162,16 @@ def main(unused_argv):
     )
 
     # get the model using our helper function
+    # model = _models.__dict__[flags.FLAGS.network](
+    #     num_classes, box_score_thresh=flags.FLAGS.threshold, min_size=600, max_size=800,
+    # )
+    # get the model using our helper function
     model = _models.__dict__[flags.FLAGS.network](
-        num_classes, box_score_thresh=flags.FLAGS.threshold, min_size=600, max_size=800,
+        num_classes,
+        box_score_thresh=flags.FLAGS.threshold,
+        min_size=600,
+        max_size=800,
+        box_nms_thresh=0.3,
     )
 
     print("Loading model state from: %s" % saved_model_file_path)

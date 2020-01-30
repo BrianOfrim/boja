@@ -88,7 +88,13 @@ def display_images(cam, labels, saved_model_file_path) -> None:
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # get the model using our helper function
-    model = _models.__dict__[flags.FLAGS.network](len(labels))
+    model = _models.__dict__[flags.FLAGS.network](
+        len(labels),
+        box_score_thresh=flags.FLAGS.threshold,
+        min_size=600,
+        max_size=800,
+        box_nms_thresh=0.3,
+    )
 
     print("Loading model state from: %s" % saved_model_file_path)
 

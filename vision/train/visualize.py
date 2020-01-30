@@ -192,62 +192,64 @@ def main(unused_argv):
 
     label_colors = plt.get_cmap("hsv")(np.linspace(0, 0.9, len(labels)))
 
-    with torch.no_grad():
-        for data in dataset:
-            image, target = data
-            # make a copy of the image for display before sending to device
-            display_image_base = F.to_pil_image(image)
-            image = image.to(device)
-            target = {k: v.to(device) for k, v in target.items()}
-            model_time = time.time()
+    for data in dataset:
+        image, target = data
+        # make a copy of the image for display before sending to device
+        display_image_base = F.to_pil_image(image)
+        image = image.to(device)
+        target = {k: v.to(device) for k, v in target.items()}
+        model_time = time.time()
+
+        outputs = []
+        with torch.no_grad():
             outputs = model([image])
-            outputs = [
-                {k: v.to(torch.device("cpu")) for k, v in t.items()} for t in outputs
-            ]
-            model_time = time.time() - model_time
-            print("Inference time = ", model_time)
+        outputs = [
+            {k: v.to(torch.device("cpu")) for k, v in t.items()} for t in outputs
+        ]
+        model_time = time.time() - model_time
+        print("Inference time = ", model_time)
 
-            ground_truth_ax.clear()
-            inference_ax.clear()
+        ground_truth_ax.clear()
+        inference_ax.clear()
 
-            ground_truth_ax.set_title("Ground Truth")
-            inference_ax.set_title("Inference")
+        ground_truth_ax.set_title("Ground Truth")
+        inference_ax.set_title("Inference")
 
-            ground_truth_ax.imshow(display_image_base)
-            inference_ax.imshow(display_image_base)
+        ground_truth_ax.imshow(display_image_base)
+        inference_ax.imshow(display_image_base)
 
-            draw_bboxes(
-                ground_truth_ax, target["boxes"], target["labels"], labels, label_colors
+        draw_bboxes(
+            ground_truth_ax, target["boxes"], target["labels"], labels, label_colors
+        )
+
+        # filter out the background labels and scores bellow threshold
+        filtered_output = [
+            (
+                outputs[0]["boxes"][j],
+                outputs[0]["labels"][j],
+                outputs[0]["scores"][j],
             )
+            for j in range(len(outputs[0]["boxes"]))
+            if outputs[0]["scores"][j] > flags.FLAGS.threshold
+            and outputs[0]["labels"][j] > 0
+        ]
 
-            # filter out the background labels and scores bellow threshold
-            filtered_output = [
-                (
-                    outputs[0]["boxes"][j],
-                    outputs[0]["labels"][j],
-                    outputs[0]["scores"][j],
-                )
-                for j in range(len(outputs[0]["boxes"]))
-                if outputs[0]["scores"][j] > flags.FLAGS.threshold
-                and outputs[0]["labels"][j] > 0
-            ]
+        inference_boxes, inference_labels, inference_scores = (
+            zip(*filtered_output) if len(filtered_output) > 0 else ([], [], [])
+        )
 
-            inference_boxes, inference_labels, inference_scores = (
-                zip(*filtered_output) if len(filtered_output) > 0 else ([], [], [])
-            )
+        draw_bboxes(
+            inference_ax,
+            inference_boxes,
+            inference_labels,
+            labels,
+            label_colors,
+            inference_scores,
+        )
 
-            draw_bboxes(
-                inference_ax,
-                inference_boxes,
-                inference_labels,
-                labels,
-                label_colors,
-                inference_scores,
-            )
+        plt.pause(0.001)
 
-            plt.pause(0.001)
-
-    # evaluate on the test dataset
+# evaluate on the test dataset
     #    evaluate(model, data_loader, device=device)
 
     print("Visualization complete")

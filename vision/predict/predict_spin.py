@@ -128,53 +128,55 @@ def display_images(cam, labels, saved_model_file_path) -> None:
 
     pixel_format = cam.PixelFormat.GetCurrentEntry().GetSymbolic()
 
-    with torch.no_grad():
-        while continue_streaming[0]:
-            retrieved_image = get_newest_image(cam, pixel_format)
+    while continue_streaming[0]:
+        retrieved_image = get_newest_image(cam, pixel_format)
 
-            if retrieved_image is None:
-                break
+        if retrieved_image is None:
+            break
 
-            image_data = RGB8Image.to_bgr(retrieved_image.get_data())
+        image_data = RGB8Image.to_bgr(retrieved_image.get_data())
 
-            tensor_image = F.to_tensor(image_data)
-            tensor_image = tensor_image.to(device)
+        tensor_image = F.to_tensor(image_data)
+        tensor_image = tensor_image.to(device)
 
+        outputs = []
+        with torch.no_grad():
             outputs = model([tensor_image])
-            outputs = [
-                {k: v.to(torch.device("cpu")) for k, v in t.items()} for t in outputs
-            ]
 
-            # filter out the background labels and scores bellow threshold
-            filtered_output = [
-                (
-                    outputs[0]["boxes"][j],
-                    outputs[0]["labels"][j],
-                    outputs[0]["scores"][j],
-                )
-                for j in range(len(outputs[0]["boxes"]))
-                if outputs[0]["scores"][j] > flags.FLAGS.threshold
-                and outputs[0]["labels"][j] > 0
-            ]
+        outputs = [
+            {k: v.to(torch.device("cpu")) for k, v in t.items()} for t in outputs
+        ]
 
-            inference_boxes, inference_labels, inference_scores = (
-                zip(*filtered_output) if len(filtered_output) > 0 else ([], [], [])
+        # filter out the background labels and scores bellow threshold
+        filtered_output = [
+            (
+                outputs[0]["boxes"][j],
+                outputs[0]["labels"][j],
+                outputs[0]["scores"][j],
             )
+            for j in range(len(outputs[0]["boxes"]))
+            if outputs[0]["scores"][j] > flags.FLAGS.threshold
+            and outputs[0]["labels"][j] > 0
+        ]
 
-            inference_ax.clear()
+        inference_boxes, inference_labels, inference_scores = (
+            zip(*filtered_output) if len(filtered_output) > 0 else ([], [], [])
+        )
 
-            inference_ax.imshow(image_data)
+        inference_ax.clear()
 
-            draw_bboxes(
-                inference_ax,
-                inference_boxes,
-                inference_labels,
-                labels,
-                label_colors,
-                inference_scores,
-            )
+        inference_ax.imshow(image_data)
 
-            plt.pause(0.001)
+        draw_bboxes(
+            inference_ax,
+            inference_boxes,
+            inference_labels,
+            labels,
+            label_colors,
+            inference_scores,
+        )
+
+        plt.pause(0.001)
 
     print("Ending live stream")
     cam.EndAcquisition()

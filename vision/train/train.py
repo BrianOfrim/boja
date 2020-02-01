@@ -6,7 +6,6 @@ import time
 from typing import List
 import re
 
-from absl import app, flags
 import matplotlib
 import matplotlib.pyplot as plt
 import torch
@@ -44,26 +43,6 @@ matplotlib.use("Agg")
 AVERAGE_PRECISION_STAT_INDEX = 0
 AVERAGE_RECALL_STAT_INDEX = 8
 
-FLAGS = flags.FLAGS
-
-flags.DEFINE_string(
-    "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local data directory.",
-)
-
-flags.DEFINE_string(
-    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
-)
-
-flags.DEFINE_string(
-    "s3_data_dir", DEFAULT_S3_DATA_DIR, "Prefix of the s3 data objects."
-)
-
-# Hyperparameters
-flags.DEFINE_enum(
-    "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
-)
-flags.DEFINE_integer("num_epochs", 10, "The number of epochs to train the model for.")
-
 
 def get_transform(train):
     transforms = []
@@ -77,48 +56,48 @@ def get_newest_manifest_path(manifest_dir_path: str) -> str:
     return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
 
 
-def main(unused_argv):
+def main(args):
 
     start_time = int(time.time())
 
-    use_s3 = True if FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if args.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(args.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % FLAGS.s3_bucket_name
+                % args.s3_bucket_name
             )
         else:
-            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
+            print("Bucket: %s exists and you have access to it" % args.s3_bucket_name)
 
     if use_s3:
         # Download any new images from s3
         s3_download_dir(
-            FLAGS.s3_bucket_name,
-            "/".join([FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
-            os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME),
+            args.s3_bucket_name,
+            "/".join([args.s3_data_dir, IMAGE_DIR_NAME]),
+            os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
             IMAGE_FILE_TYPE,
         )
 
         # Download any new annotation files from s3
         s3_download_dir(
-            FLAGS.s3_bucket_name,
-            "/".join([FLAGS.s3_data_dir, ANNOTATION_DIR_NAME]),
-            os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+            args.s3_bucket_name,
+            "/".join([args.s3_data_dir, ANNOTATION_DIR_NAME]),
+            os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
             ANNOTATION_FILE_TYPE,
         )
 
         # Download any new manifests files from s3
         s3_download_dir(
-            FLAGS.s3_bucket_name,
-            "/".join([FLAGS.s3_data_dir, MANIFEST_DIR_NAME]),
-            os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME),
+            args.s3_bucket_name,
+            "/".join([args.s3_data_dir, MANIFEST_DIR_NAME]),
+            os.path.join(args.local_data_dir, MANIFEST_DIR_NAME),
             MANIFEST_FILE_TYPE,
         )
 
-    label_file_path = os.path.join(FLAGS.local_data_dir, LABEL_FILE_NAME)
+    label_file_path = os.path.join(args.local_data_dir, LABEL_FILE_NAME)
     if not os.path.isfile(label_file_path):
         print("Missing file %s" % label_file_path)
         return
@@ -134,13 +113,13 @@ def main(unused_argv):
     labels.insert(0, "background")
 
     newest_manifest_file = get_newest_manifest_path(
-        os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME)
+        os.path.join(args.local_data_dir, MANIFEST_DIR_NAME)
     )
 
     if newest_manifest_file is None:
         print(
             "Cannot find a manifest file in: %s"
-            % (os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME))
+            % (os.path.join(args.local_data_dir, MANIFEST_DIR_NAME))
         )
 
     # train on the GPU or on the CPU, if a GPU is not available
@@ -152,16 +131,16 @@ def main(unused_argv):
     # use our dataset and defined transformations
 
     dataset = BojaDataSet(
-        os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME),
-        os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+        os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
+        os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
         newest_manifest_file,
         get_transform(train=True),
         labels,
     )
 
     dataset_test = BojaDataSet(
-        os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME),
-        os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+        os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
+        os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
         newest_manifest_file,
         get_transform(train=False),
         labels,
@@ -182,10 +161,6 @@ def main(unused_argv):
     )
 
     # define training and validation data loaders
-    # data_loader = torch.utils.data.DataLoader(
-    #     dataset, batch_size=2, shuffle=True, num_workers=4, collate_fn=utils.collate_fn
-    # )
-
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=1, shuffle=True, num_workers=1, collate_fn=collate_fn
     )
@@ -195,7 +170,7 @@ def main(unused_argv):
     )
 
     # get the model using our helper function
-    model = _models.__dict__[FLAGS.network](num_classes)
+    model = _models.__dict__[args.network](num_classes)
 
     # move model to the right device
     model.to(device)
@@ -206,7 +181,7 @@ def main(unused_argv):
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-    num_epochs = FLAGS.num_epochs
+    num_epochs = args.num_epochs
 
     print("Training for %d epochs" % num_epochs)
 
@@ -225,10 +200,10 @@ def main(unused_argv):
         average_persision.append(stats[AVERAGE_PRECISION_STAT_INDEX])
         average_recall.append(stats[AVERAGE_RECALL_STAT_INDEX])
 
-    model_state_local_dir = os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME)
+    model_state_local_dir = os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME)
     # Create model state directory if it does not exist yet
     create_output_dir(model_state_local_dir)
-    run_name = "%s-%s" % (str(start_time), FLAGS.network)
+    run_name = "%s-%s" % (str(start_time), args.network)
 
     model_state_file_path = os.path.join(
         model_state_local_dir, "%s.%s" % (run_name, MODEL_STATE_FILE_TYPE),
@@ -245,7 +220,7 @@ def main(unused_argv):
     plt.title("Evaluation data from %s" % run_name)
 
     # Create log file directory if it does not exist yet
-    log_image_local_dir = os.path.join(FLAGS.local_data_dir, LOGS_DIR_NAME)
+    log_image_local_dir = os.path.join(args.local_data_dir, LOGS_DIR_NAME)
     create_output_dir(log_image_local_dir)
 
     log_file_name = "%s.jpg" % run_name
@@ -257,18 +232,53 @@ def main(unused_argv):
     if use_s3:
         # Send the saved model and logs to S3
         s3_upload_files(
-            FLAGS.s3_bucket_name,
+            args.s3_bucket_name,
             [model_state_file_path],
-            "/".join([FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            "/".join([args.s3_data_dir, MODEL_STATE_DIR_NAME]),
         )
         s3_upload_files(
-            FLAGS.s3_bucket_name,
+            args.s3_bucket_name,
             [log_file_path],
-            "/".join([FLAGS.s3_data_dir, LOGS_DIR_NAME]),
+            "/".join([args.s3_data_dir, LOGS_DIR_NAME]),
         )
 
     print("Training complete")
 
 
 if __name__ == "__main__":
-    app.run(main)
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--local_data_dir",
+        type=str,
+        default=DEFAULT_LOCAL_DATA_DIR,
+        help="Local data directory.",
+    )
+    parser.add_argument(
+        "--s3_bucket_name", type=str,
+    )
+    parser.add_argument(
+        "--s3_data_dir",
+        type=str,
+        default=DEFAULT_S3_DATA_DIR,
+        help="Prefix of the s3 data objects.",
+    )
+    parser.add_argument(
+        "--network",
+        type=str,
+        choices=NETWORKS,
+        default=NETWORKS[0],
+        help="The neural network to use for object detection",
+    )
+    parser.add_argument(
+        "--num_epochs", type=int, default=10,
+    )
+
+    args = parser.parse_args()
+
+    print(args)
+
+    main(args)
+

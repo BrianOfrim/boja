@@ -123,7 +123,7 @@ def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
         file_path = os.path.join(
             FLAGS.local_data_dir,
             IMAGE_DIR_NAME,
-            "%i.%s" % (time.time(), IMAGE_FILE_TYPE),
+            "%i.%s" % ((time.time() * 1000), IMAGE_FILE_TYPE),
         )
         save_successfull = image.save(file_path)
         print("Image saved at: %s" % file_path)

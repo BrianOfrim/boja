@@ -31,6 +31,8 @@ from .._settings import (
     MANIFEST_FILE_TYPE,
 )
 
+FLAGS = flags.FLAGS
+
 flags.DEFINE_string(
     "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local directory of the data to label.",
 )
@@ -56,7 +58,7 @@ def save_outputs(
 ) -> None:
     # create a new manifest file
     new_manifest_path = os.path.join(
-        flags.FLAGS.local_data_dir,
+        FLAGS.local_data_dir,
         MANIFEST_DIR_NAME,
         "%i-manifest.%s" % (start_time, MANIFEST_FILE_TYPE),
     )
@@ -80,20 +82,20 @@ def save_outputs(
             manifest.write("%s,%s\n" % (image_filename, annotation_filename,))
     if use_s3:
         s3_upload_files(
-            flags.FLAGS.s3_bucket_name,
+            FLAGS.s3_bucket_name,
             new_annotation_filepaths,
-            flags.FLAGS.s3_data_dir + "/" + ANNOTATION_DIR_NAME,
+            FLAGS.s3_data_dir + "/" + ANNOTATION_DIR_NAME,
         )
         s3_upload_files(
-            flags.FLAGS.s3_bucket_name,
+            FLAGS.s3_bucket_name,
             [new_manifest_path],
-            flags.FLAGS.s3_data_dir + "/" + MANIFEST_DIR_NAME,
+            FLAGS.s3_data_dir + "/" + MANIFEST_DIR_NAME,
         )
         # ensure that all images have been uploaded
         s3_upload_files(
-            flags.FLAGS.s3_bucket_name,
+            FLAGS.s3_bucket_name,
             [image.image_path for image in annotatedImages],
-            flags.FLAGS.s3_data_dir + "/" + IMAGE_DIR_NAME,
+            FLAGS.s3_data_dir + "/" + IMAGE_DIR_NAME,
         )
 
 
@@ -104,47 +106,44 @@ def main(unused_argv):
     fig = plt.figure()
     gui = GUI(fig)
 
-    use_s3 = True if flags.FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if FLAGS.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(flags.FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(FLAGS.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % flags.FLAGS.s3_bucket_name
+                % FLAGS.s3_bucket_name
             )
         else:
-            print(
-                "Bucket: %s exists and you have access to it"
-                % flags.FLAGS.s3_bucket_name
-            )
+            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
 
     if use_s3:
         # Download new images from s3
         s3_download_dir(
-            flags.FLAGS.s3_bucket_name,
-            "/".join([flags.FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
-            os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME),
+            FLAGS.s3_bucket_name,
+            "/".join([FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
+            os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME),
             IMAGE_FILE_TYPE,
         )
 
         # Download any nest annotation files from s3
         s3_download_dir(
-            flags.FLAGS.s3_bucket_name,
-            "/".join([flags.FLAGS.s3_data_dir, ANNOTATION_DIR_NAME]),
-            os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+            FLAGS.s3_bucket_name,
+            "/".join([FLAGS.s3_data_dir, ANNOTATION_DIR_NAME]),
+            os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
             ANNOTATION_FILE_TYPE,
         )
 
         # Download any new manifests files from s3
         s3_download_dir(
-            flags.FLAGS.s3_bucket_name,
-            "/".join([flags.FLAGS.s3_data_dir, MANIFEST_DIR_NAME]),
-            os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME),
+            FLAGS.s3_bucket_name,
+            "/".join([FLAGS.s3_data_dir, MANIFEST_DIR_NAME]),
+            os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME),
             MANIFEST_FILE_TYPE,
         )
 
-    label_file_path = os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)
+    label_file_path = os.path.join(FLAGS.local_data_dir, LABEL_FILE_NAME)
     if not os.path.isfile(label_file_path):
         print("Missing file %s" % label_file_path)
         return
@@ -161,12 +160,12 @@ def main(unused_argv):
     for index, (name, color) in enumerate(zip(category_labels, category_colors)):
         gui.add_category(Category(name, tuple(color), str(index)))
 
-    if not os.path.isdir(os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME)):
+    if not os.path.isdir(os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME)):
         print("Invalid input image directory")
         return
 
     previous_manifest_file = get_newest_manifest_path(
-        os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME)
+        os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME)
     )
     manifest_images = set()
     if previous_manifest_file is not None:
@@ -175,19 +174,15 @@ def main(unused_argv):
                 manifest_images.add(line.split(",")[0].rstrip())
 
     # read in the names of the images to label
-    for image_file in os.listdir(
-        os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME)
-    ):
+    for image_file in os.listdir(os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME)):
         if (
             image_file.endswith(IMAGE_FILE_TYPE)
             and os.path.basename(image_file) not in manifest_images
         ):
             gui.add_image(
                 AnnotatedImage(
-                    os.path.join(
-                        flags.FLAGS.local_data_dir, IMAGE_DIR_NAME, image_file
-                    ),
-                    os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+                    os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME, image_file),
+                    os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
                 )
             )
 
@@ -195,15 +190,11 @@ def main(unused_argv):
         print("No input images found")
         return
 
-    if not create_output_dir(
-        os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME)
-    ):
+    if not create_output_dir(os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME)):
         print("Cannot create output annotations directory.")
         return
 
-    if not create_output_dir(
-        os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME)
-    ):
+    if not create_output_dir(os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME)):
         print("Cannot create output manifests directory")
         return
 

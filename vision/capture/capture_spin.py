@@ -6,10 +6,8 @@ import typing
 import queue
 
 from absl import app, flags
-if os.uname().machine == "aarch64":
-    import cv2 
-else:
-    from cv2 import cv2 
+
+import cv2
 import numpy as np
 import PySpin
 from .._file_utils import create_output_dir
@@ -25,6 +23,8 @@ from .._settings import (
 )
 
 WINDOW_NAME = "Capture"
+
+FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
     "gentl_producer_path",
@@ -87,20 +87,19 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
             break
 
         cv2.imshow(
-            WINDOW_NAME, retrieved_image.get_resized_image(flags.FLAGS.display_width),
+            WINDOW_NAME, retrieved_image.get_resized_image(FLAGS.display_width),
         )
         keypress = cv2.waitKey(1)
         if keypress == 27:
             # escape key pressed
             break
-#        elif cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
-#            # x button clicked
-#            break
+        #        elif cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
+        #            # x button clicked
+        #            break
         elif keypress == 13:
             # Enter key pressed
             cv2.imshow(
-                WINDOW_NAME,
-                retrieved_image.get_highlighted_image(flags.FLAGS.display_width),
+                WINDOW_NAME, retrieved_image.get_highlighted_image(FLAGS.display_width),
             )
             save_queue.put(retrieved_image)
             cv2.waitKey(500)
@@ -118,7 +117,7 @@ def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
         if image is None:
             break
         file_path = os.path.join(
-            flags.FLAGS.local_data_dir,
+            FLAGS.local_data_dir,
             IMAGE_DIR_NAME,
             "%i.%s" % (time.time(), IMAGE_FILE_TYPE),
         )
@@ -127,9 +126,9 @@ def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
 
         if use_s3 and save_successfull:
             s3_upload_files(
-                flags.FLAGS.s3_bucket_name,
+                FLAGS.s3_bucket_name,
                 [file_path],
-                "/".join([flags.FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
+                "/".join([FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
             )
 
     print("Saving complete.")
@@ -168,31 +167,28 @@ def apply_camera_settings(cam) -> None:
     # Configure frame rate
     cam.AcquisitionFrameRateEnable.SetValue(True)
     cam.AcquisitionFrameRate.SetValue(
-        min(flags.FLAGS.frame_rate, cam.AcquisitionFrameRate.GetMax())
+        min(FLAGS.frame_rate, cam.AcquisitionFrameRate.GetMax())
     )
     print("Acquisition frame rate set to: %3.1f" % cam.AcquisitionFrameRate.GetValue())
 
 
 def main(unused_argv):
 
-    if not create_output_dir(os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME)):
+    if not create_output_dir(os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME)):
         print("Cannot create output annotations directory.")
         return
 
-    use_s3 = True if flags.FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if FLAGS.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(flags.FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(FLAGS.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % flags.FLAGS.s3_bucket_name
+                % FLAGS.s3_bucket_name
             )
         else:
-            print(
-                "Bucket: %s exists and you have access to it"
-                % flags.FLAGS.s3_bucket_name
-            )
+            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
 
     # Retrieve singleton reference to system object
     system = PySpin.System.GetInstance()

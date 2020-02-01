@@ -29,6 +29,8 @@ from .._settings import (
 
 matplotlib.use("TKAgg")
 
+FLAGS = flags.FLAGS
+
 flags.DEFINE_string(
     "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
 )
@@ -77,32 +79,29 @@ def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str
 
 def main(unused_argv):
 
-    use_s3 = True if flags.FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if FLAGS.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(flags.FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(FLAGS.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % flags.FLAGS.s3_bucket_name
+                % FLAGS.s3_bucket_name
             )
         else:
-            print(
-                "Bucket: %s exists and you have access to it"
-                % flags.FLAGS.s3_bucket_name
-            )
+            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
 
     if use_s3:
         # Get the newest model
         s3_download_highest_numbered_file(
-            flags.FLAGS.s3_bucket_name,
-            "/".join([flags.FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
-            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            FLAGS.s3_bucket_name,
+            "/".join([FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
             MODEL_STATE_FILE_TYPE,
-            flags.FLAGS.network,
+            FLAGS.network,
         )
 
-    label_file_path = os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)
+    label_file_path = os.path.join(FLAGS.local_data_dir, LABEL_FILE_NAME)
     if not os.path.isfile(label_file_path):
         print("Missing file %s" % label_file_path)
         return
@@ -121,10 +120,10 @@ def main(unused_argv):
     print(labels)
 
     manifest_file_path = (
-        flags.FLAGS.manifest_path
-        if flags.FLAGS.manifest_path is not None
+        FLAGS.manifest_path
+        if FLAGS.manifest_path is not None
         else get_newest_manifest_path(
-            os.path.join(flags.FLAGS.local_data_dir, MANIFEST_DIR_NAME)
+            os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME)
         )
     )
 
@@ -133,11 +132,10 @@ def main(unused_argv):
         return
 
     saved_model_file_path = (
-        flags.FLAGS.model_path
-        if flags.FLAGS.model_path is not None
+        FLAGS.model_path
+        if FLAGS.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
-            flags.FLAGS.network,
+            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME), FLAGS.network,
         )
     )
 
@@ -154,21 +152,21 @@ def main(unused_argv):
     num_classes = len(labels)
     # use our dataset and defined transformations
     dataset = BojaDataSet(
-        os.path.join(flags.FLAGS.local_data_dir, IMAGE_DIR_NAME),
-        os.path.join(flags.FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+        os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME),
+        os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
         manifest_file_path,
         get_transform(train=False),
         labels,
     )
 
     # get the model using our helper function
-    # model = _models.__dict__[flags.FLAGS.network](
-    #     num_classes, box_score_thresh=flags.FLAGS.threshold, min_size=600, max_size=800,
+    # model = _models.__dict__[FLAGS.network](
+    #     num_classes, box_score_thresh=FLAGS.threshold, min_size=600, max_size=800,
     # )
     # get the model using our helper function
-    model = _models.__dict__[flags.FLAGS.network](
+    model = _models.__dict__[FLAGS.network](
         num_classes,
-        box_score_thresh=flags.FLAGS.threshold,
+        box_score_thresh=FLAGS.threshold,
         min_size=600,
         max_size=800,
         box_nms_thresh=0.3,
@@ -224,14 +222,9 @@ def main(unused_argv):
 
         # filter out the background labels and scores bellow threshold
         filtered_output = [
-            (
-                outputs[0]["boxes"][j],
-                outputs[0]["labels"][j],
-                outputs[0]["scores"][j],
-            )
+            (outputs[0]["boxes"][j], outputs[0]["labels"][j], outputs[0]["scores"][j],)
             for j in range(len(outputs[0]["boxes"]))
-            if outputs[0]["scores"][j] > flags.FLAGS.threshold
-            and outputs[0]["labels"][j] > 0
+            if outputs[0]["scores"][j] > FLAGS.threshold and outputs[0]["labels"][j] > 0
         ]
 
         inference_boxes, inference_labels, inference_scores = (
@@ -249,7 +242,7 @@ def main(unused_argv):
 
         plt.pause(0.001)
 
-# evaluate on the test dataset
+    # evaluate on the test dataset
     #    evaluate(model, data_loader, device=device)
 
     print("Visualization complete")

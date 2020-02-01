@@ -26,6 +26,7 @@ matplotlib.use("TKAgg")
 
 INFERENCE_WINDOW_NAME = "Inference"
 
+FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
     "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
@@ -88,9 +89,9 @@ def display_images(cam, labels, saved_model_file_path) -> None:
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # get the model using our helper function
-    model = _models.__dict__[flags.FLAGS.network](
+    model = _models.__dict__[FLAGS.network](
         len(labels),
-        box_score_thresh=flags.FLAGS.threshold,
+        box_score_thresh=FLAGS.threshold,
         min_size=600,
         max_size=800,
         box_nms_thresh=0.3,
@@ -149,14 +150,9 @@ def display_images(cam, labels, saved_model_file_path) -> None:
 
         # filter out the background labels and scores bellow threshold
         filtered_output = [
-            (
-                outputs[0]["boxes"][j],
-                outputs[0]["labels"][j],
-                outputs[0]["scores"][j],
-            )
+            (outputs[0]["boxes"][j], outputs[0]["labels"][j], outputs[0]["scores"][j],)
             for j in range(len(outputs[0]["boxes"]))
-            if outputs[0]["scores"][j] > flags.FLAGS.threshold
-            and outputs[0]["labels"][j] > 0
+            if outputs[0]["scores"][j] > FLAGS.threshold and outputs[0]["labels"][j] > 0
         ]
 
         inference_boxes, inference_labels, inference_scores = (
@@ -215,39 +211,36 @@ def apply_camera_settings(cam) -> None:
     # Configure frame rate
     cam.AcquisitionFrameRateEnable.SetValue(True)
     cam.AcquisitionFrameRate.SetValue(
-        min(flags.FLAGS.frame_rate, cam.AcquisitionFrameRate.GetMax())
+        min(FLAGS.frame_rate, cam.AcquisitionFrameRate.GetMax())
     )
     print("Acquisition frame rate set to: %3.1f" % cam.AcquisitionFrameRate.GetValue())
 
 
 def main(unused_argv):
 
-    use_s3 = True if flags.FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if FLAGS.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(flags.FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(FLAGS.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % flags.FLAGS.s3_bucket_name
+                % FLAGS.s3_bucket_name
             )
         else:
-            print(
-                "Bucket: %s exists and you have access to it"
-                % flags.FLAGS.s3_bucket_name
-            )
+            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
 
     if use_s3:
         # Get the newest model
         s3_download_highest_numbered_file(
-            flags.FLAGS.s3_bucket_name,
-            "/".join([flags.FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
-            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            FLAGS.s3_bucket_name,
+            "/".join([FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
             MODEL_STATE_FILE_TYPE,
-            flags.FLAGS.network,
+            FLAGS.network,
         )
 
-    label_file_path = os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)
+    label_file_path = os.path.join(FLAGS.local_data_dir, LABEL_FILE_NAME)
     if not os.path.isfile(label_file_path):
         print("Missing file %s" % label_file_path)
         return
@@ -266,11 +259,10 @@ def main(unused_argv):
     print(labels)
 
     saved_model_file_path = (
-        flags.FLAGS.model_path
-        if flags.FLAGS.model_path is not None
+        FLAGS.model_path
+        if FLAGS.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(flags.FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
-            flags.FLAGS.network,
+            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME), FLAGS.network,
         )
     )
 

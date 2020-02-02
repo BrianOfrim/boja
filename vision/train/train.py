@@ -40,7 +40,9 @@ from .._settings import (
 
 matplotlib.use("Agg")
 
+AVERAGE_PRECISION_STAT_LABEL = "AR_IoU=0.50:0.95"
 AVERAGE_PRECISION_STAT_INDEX = 0
+AVERAGE_RECALL_STAT_LABEL = "AR_IoU=0.50:0.95"
 AVERAGE_RECALL_STAT_INDEX = 8
 
 
@@ -54,6 +56,52 @@ def get_transform(train):
 
 def get_newest_manifest_path(manifest_dir_path: str) -> str:
     return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
+
+
+def train_model(model, dataset, dataset_test, lr_scheduler, optimizer, num_epochs=10):
+    # train on the GPU or on the CPU, if a GPU is not available
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+    print("Using device: ", device)
+
+    # define training and validation data loaders
+    data_loader = torch.utils.data.DataLoader(
+        dataset, batch_size=1, shuffle=True, num_workers=1, collate_fn=collate_fn
+    )
+
+    data_loader_test = torch.utils.data.DataLoader(
+        dataset_test, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate_fn,
+    )
+
+    # move model to the right device
+    model.to(device)
+
+    print("Training for %d epochs" % num_epochs)
+
+    evaluation_metrics = {
+        AVERAGE_PRECISION_STAT_LABEL: [],
+        AVERAGE_RECALL_STAT_LABEL: [],
+    }
+
+    for epoch in range(num_epochs):
+        # train for one epoch, printing every 10 iterations
+        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
+        # update the learning rate
+        lr_scheduler.step()
+        # evaluate on the test dataset
+        eval_data = evaluate(model, data_loader_test, device=device)
+
+        stats = eval_data.coco_eval["bbox"].stats
+        evaluation_metrics[AVERAGE_PRECISION_STAT_LABEL].append(
+            stats[AVERAGE_PRECISION_STAT_INDEX]
+        )
+        evaluation_metrics[AVERAGE_RECALL_STAT_LABEL].append(
+            stats[AVERAGE_RECALL_STAT_INDEX]
+        )
+
+    state = {"model": model.state_dict()}
+
+    return state, evaluation_metrics
 
 
 def main(args):
@@ -122,14 +170,7 @@ def main(args):
             % (os.path.join(args.local_data_dir, MANIFEST_DIR_NAME))
         )
 
-    # train on the GPU or on the CPU, if a GPU is not available
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-    print("Using device: ", device)
-
-    num_classes = len(labels)
     # use our dataset and defined transformations
-
     dataset = BojaDataSet(
         os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
         os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
@@ -160,20 +201,10 @@ def main(args):
         % (len(dataset), len(dataset_test))
     )
 
-    # define training and validation data loaders
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, shuffle=True, num_workers=1, collate_fn=collate_fn
-    )
-
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate_fn,
-    )
+    num_classes = len(labels)
 
     # get the model using our helper function
     model = _models.__dict__[args.network](num_classes)
-
-    # move model to the right device
-    model.to(device)
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
@@ -181,24 +212,14 @@ def main(args):
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-    num_epochs = args.num_epochs
-
-    print("Training for %d epochs" % num_epochs)
-
-    average_persision = []
-    average_recall = []
-
-    for epoch in range(num_epochs):
-        # train for one epoch, printing every 10 iterations
-        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
-        # update the learning rate
-        lr_scheduler.step()
-        # evaluate on the test dataset
-        eval_data = evaluate(model, data_loader_test, device=device)
-
-        stats = eval_data.coco_eval["bbox"].stats
-        average_persision.append(stats[AVERAGE_PRECISION_STAT_INDEX])
-        average_recall.append(stats[AVERAGE_RECALL_STAT_INDEX])
+    model_state, metrics = train_model(
+        model,
+        dataset,
+        dataset_test,
+        lr_scheduler,
+        optimizer,
+        num_epochs=args.num_epochs,
+    )
 
     model_state_local_dir = os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME)
     # Create model state directory if it does not exist yet
@@ -210,14 +231,16 @@ def main(args):
     )
 
     # Save the model state to a file
-    torch.save(model.state_dict(), model_state_file_path)
+    torch.save(model_state, model_state_file_path)
 
     print("Model state saved at: %s" % model_state_file_path)
 
-    plt.plot(average_persision, label="AP: IoU=0.50:0.95 maxDets=100")
-    plt.plot(average_recall, label="AR: IoU=0.50:0.95 maxDets=100")
+    plt.plot(metrics[AVERAGE_PRECISION_STAT_LABEL], label=AVERAGE_PRECISION_STAT_LABEL)
+    plt.plot(metrics[AVERAGE_RECALL_STAT_LABEL], label=AVERAGE_RECALL_STAT_LABEL)
+
     plt.legend(loc="lower right")
     plt.title("Evaluation data from %s" % run_name)
+    plt.xlabel("Epoch")
 
     # Create log file directory if it does not exist yet
     log_image_local_dir = os.path.join(args.local_data_dir, LOGS_DIR_NAME)
@@ -241,7 +264,6 @@ def main(args):
             [log_file_path],
             "/".join([args.s3_data_dir, LOGS_DIR_NAME]),
         )
-
     print("Training complete")
 
 
@@ -277,8 +299,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    print(args)
 
     main(args)
 

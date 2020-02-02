@@ -174,7 +174,8 @@ def main(unused_argv):
 
     print("Loading model state from: %s" % saved_model_file_path)
 
-    model.load_state_dict(torch.load(saved_model_file_path, map_location=device))
+    checkpoint = torch.load(saved_model_file_path, map_location=device)
+    model.load_state_dict(checkpoint["model"])
 
     print("Model state loaded")
 

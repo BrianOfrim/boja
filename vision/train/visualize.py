@@ -1,7 +1,6 @@
 import time
 import os
 
-from absl import app, flags
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,35 +28,6 @@ from .._settings import (
 
 matplotlib.use("TKAgg")
 
-FLAGS = flags.FLAGS
-
-flags.DEFINE_string(
-    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
-)
-
-flags.DEFINE_string(
-    "s3_data_dir", DEFAULT_S3_DATA_DIR, "Prefix of the s3 data objects."
-)
-
-
-flags.DEFINE_string(
-    "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local data directory.",
-)
-
-flags.DEFINE_string(
-    "manifest_path", None, "The manifest file to load images from. Default is newest."
-)
-
-flags.DEFINE_string("model_path", None, "The model to load. Default is newest.")
-
-flags.DEFINE_float(
-    "threshold", 0.5, "The threshold above which to display predicted bounding boxes"
-)
-
-flags.DEFINE_enum(
-    "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
-)
-
 
 def get_transform(train):
     transforms = []
@@ -77,31 +47,31 @@ def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str
     )
 
 
-def main(unused_argv):
+def main(args):
 
-    use_s3 = True if FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if args.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(args.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % FLAGS.s3_bucket_name
+                % args.s3_bucket_name
             )
         else:
-            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
+            print("Bucket: %s exists and you have access to it" % args.s3_bucket_name)
 
     if use_s3:
         # Get the newest model
         s3_download_highest_numbered_file(
-            FLAGS.s3_bucket_name,
-            "/".join([FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
-            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            args.s3_bucket_name,
+            "/".join([args.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME),
             MODEL_STATE_FILE_TYPE,
-            FLAGS.network,
+            args.network,
         )
 
-    label_file_path = os.path.join(FLAGS.local_data_dir, LABEL_FILE_NAME)
+    label_file_path = os.path.join(args.local_data_dir, LABEL_FILE_NAME)
     if not os.path.isfile(label_file_path):
         print("Missing file %s" % label_file_path)
         return
@@ -120,10 +90,10 @@ def main(unused_argv):
     print(labels)
 
     manifest_file_path = (
-        FLAGS.manifest_path
-        if FLAGS.manifest_path is not None
+        args.manifest_path
+        if args.manifest_path is not None
         else get_newest_manifest_path(
-            os.path.join(FLAGS.local_data_dir, MANIFEST_DIR_NAME)
+            os.path.join(args.local_data_dir, MANIFEST_DIR_NAME)
         )
     )
 
@@ -132,10 +102,10 @@ def main(unused_argv):
         return
 
     saved_model_file_path = (
-        FLAGS.model_path
-        if FLAGS.model_path is not None
+        args.model_path
+        if args.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME), FLAGS.network,
+            os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME), args.network,
         )
     )
 
@@ -152,21 +122,17 @@ def main(unused_argv):
     num_classes = len(labels)
     # use our dataset and defined transformations
     dataset = BojaDataSet(
-        os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME),
-        os.path.join(FLAGS.local_data_dir, ANNOTATION_DIR_NAME),
+        os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
+        os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
         manifest_file_path,
         get_transform(train=False),
         labels,
     )
 
     # get the model using our helper function
-    # model = _models.__dict__[FLAGS.network](
-    #     num_classes, box_score_thresh=FLAGS.threshold, min_size=600, max_size=800,
-    # )
-    # get the model using our helper function
-    model = _models.__dict__[FLAGS.network](
+    model = _models.__dict__[args.network](
         num_classes,
-        box_score_thresh=FLAGS.threshold,
+        box_score_thresh=args.threshold,
         min_size=600,
         max_size=800,
         box_nms_thresh=0.3,
@@ -225,7 +191,7 @@ def main(unused_argv):
         filtered_output = [
             (outputs[0]["boxes"][j], outputs[0]["labels"][j], outputs[0]["scores"][j],)
             for j in range(len(outputs[0]["boxes"]))
-            if outputs[0]["scores"][j] > FLAGS.threshold and outputs[0]["labels"][j] > 0
+            if outputs[0]["scores"][j] > args.threshold and outputs[0]["labels"][j] > 0
         ]
 
         inference_boxes, inference_labels, inference_scores = (
@@ -250,4 +216,45 @@ def main(unused_argv):
 
 
 if __name__ == "__main__":
-    app.run(main)
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--local_data_dir",
+        type=str,
+        default=DEFAULT_LOCAL_DATA_DIR,
+        help="Local data directory.",
+    )
+    parser.add_argument(
+        "--manifest_path", type=str,
+    )
+    parser.add_argument("--model_path", type=str)
+    parser.add_argument(
+        "--s3_bucket_name", type=str,
+    )
+    parser.add_argument(
+        "--s3_data_dir",
+        type=str,
+        default=DEFAULT_S3_DATA_DIR,
+        help="Prefix of the s3 data objects.",
+    )
+    parser.add_argument(
+        "--network",
+        type=str,
+        choices=NETWORKS,
+        default=NETWORKS[0],
+        help="The neural network to use for object detection",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.5,
+        help="The threshold above which to display predicted bounding boxes",
+    )
+
+    args = parser.parse_args()
+
+    main(args)
+

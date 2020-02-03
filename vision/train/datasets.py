@@ -5,6 +5,7 @@ from PIL import Image
 import torch
 
 from .pascal_voc_parser import read_content, has_boxes
+from .transforms import ToTensor, RandomHorizontalFlip, Compose
 
 
 INVALID_ANNOTATION_FILE_IDENTIFIER = "invalid"
@@ -16,13 +17,13 @@ class BojaDataSet(object):
         image_dir_path: str,
         annotation_dir_path: str,
         manifest_file_path: str,
-        transforms,
         labels: List[str],
+        training: bool = False,
     ):
         self.image_dir_path = image_dir_path
         self.annotation_dir_path = annotation_dir_path
 
-        self.transforms = transforms
+        self.transforms = self.get_transforms(training)
 
         self.labels = labels
         manifest_items = [
@@ -82,5 +83,13 @@ class BojaDataSet(object):
 
         return img, target
 
+    def get_transforms(self, train):
+        transforms = []
+        transforms.append(ToTensor())
+        if train:
+            transforms.append(RandomHorizontalFlip(0.5))
+        return Compose(transforms)
+
     def __len__(self):
         return len(self.images)
+

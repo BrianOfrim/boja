@@ -46,82 +46,8 @@ from .._settings import (
 matplotlib.use("Agg")
 
 
-def get_transform(train):
-    transforms = []
-    transforms.append(ToTensor())
-    if train:
-        transforms.append(RandomHorizontalFlip(0.5))
-    return Compose(transforms)
-
-
 def get_newest_manifest_path(manifest_dir_path: str) -> str:
     return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
-
-
-def train_model(model, dataset, dataset_test, lr_scheduler, optimizer, num_epochs=10):
-    # train on the GPU or on the CPU, if a GPU is not available
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-    print("Using device: ", device)
-
-    # define training and validation data loaders
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, shuffle=True, num_workers=1, collate_fn=collate_fn
-    )
-
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate_fn,
-    )
-
-    # move model to the right device
-    model.to(device)
-
-    print("Training for %d epochs" % num_epochs)
-
-    evaluation_metrics = {
-        AVERAGE_PRECISION_STAT_LABEL: [],
-        AVERAGE_RECALL_STAT_LABEL: [],
-    }
-
-    for epoch in range(num_epochs):
-        # train for one epoch, printing every 10 iterations
-        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
-        # update the learning rate
-        lr_scheduler.step()
-        # evaluate on the test dataset
-        eval_data = evaluate(model, data_loader_test, device=device)
-
-        stats = eval_data.coco_eval["bbox"].stats
-        evaluation_metrics[AVERAGE_PRECISION_STAT_LABEL].append(
-            stats[AVERAGE_PRECISION_STAT_INDEX]
-        )
-        evaluation_metrics[AVERAGE_RECALL_STAT_LABEL].append(
-            stats[AVERAGE_RECALL_STAT_INDEX]
-        )
-
-    state = {"model": model.state_dict()}
-
-    return state, evaluation_metrics
-
-
-def plot_metrics(run_name, metrics):
-    plt.plot(metrics[AVERAGE_PRECISION_STAT_LABEL], label=AVERAGE_PRECISION_STAT_LABEL)
-    plt.plot(metrics[AVERAGE_RECALL_STAT_LABEL], label=AVERAGE_RECALL_STAT_LABEL)
-
-    plt.legend(loc="lower right")
-    plt.title("Evaluation data from %s" % run_name)
-    plt.xlabel("Epoch")
-
-    # Create log file directory if it does not exist yet
-    log_image_local_dir = os.path.join(args.local_data_dir, LOGS_DIR_NAME)
-    create_output_dir(log_image_local_dir)
-
-    log_file_name = "%s.jpg" % run_name
-    log_file_path = os.path.join(log_image_local_dir, log_file_name)
-    plt.savefig(log_file_path)
-
-    print("Log file saved at: %s" % log_file_path)
-    return log_file_name
 
 
 def main(args):

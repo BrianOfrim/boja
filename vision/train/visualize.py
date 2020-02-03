@@ -11,7 +11,6 @@ from .datasets import BojaDataSet
 from .._file_utils import get_highest_numbered_file
 from .._image_utils import draw_bboxes
 from .. import _models
-from .transforms import ToTensor, RandomHorizontalFlip, Compose
 from .._s3_utils import s3_bucket_exists, s3_download_highest_numbered_file
 from .._settings import (
     DEFAULT_LOCAL_DATA_DIR,
@@ -27,14 +26,6 @@ from .._settings import (
 )
 
 matplotlib.use("TKAgg")
-
-
-def get_transform(train):
-    transforms = []
-    transforms.append(ToTensor())
-    if train:
-        transforms.append(RandomHorizontalFlip(0.5))
-    return Compose(transforms)
 
 
 def get_newest_manifest_path(manifest_dir_path: str) -> str:
@@ -125,8 +116,8 @@ def main(args):
         os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
         os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
         manifest_file_path,
-        get_transform(train=False),
         labels,
+        training=False,
     )
 
     # get the model using our helper function

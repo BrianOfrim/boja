@@ -3,8 +3,6 @@ import os
 import re
 from typing import List
 
-from absl import app, flags
-
 from ._file_utils import create_output_dir, get_files_from_dir
 from ._s3_utils import (
     s3_bucket_exists,
@@ -26,18 +24,6 @@ from ._settings import (
     MANIFEST_FILE_TYPE,
     MODEL_STATE_FILE_TYPE,
     LABEL_FILE_NAME,
-)
-
-flags.DEFINE_string(
-    "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local data directory.",
-)
-
-flags.DEFINE_string(
-    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
-)
-
-flags.DEFINE_string(
-    "s3_data_dir", DEFAULT_S3_DATA_DIR, "Prefix of the s3 data objects."
 )
 
 
@@ -96,56 +82,54 @@ def sync_s3_and_local_dir(s3_bucket_name, s3_dir, local_dir, file_type, n_newest
     )
 
 
-def main(unused_argv):
+def main(args):
     # create local data directory if it does not exits
-    if not create_output_dir(flags.FLAGS.local_data_dir):
-        print("Error creating local data directory %s" % flags.FLAGS.local_data_dir)
+    if not create_output_dir(args.local_data_dir):
+        print("Error creating local data directory %s" % args.local_data_dir)
         return
     # create local data sub directories
     for data_sub_dir in DATA_SUB_DIRS:
-        if not create_output_dir(
-            os.path.join(flags.FLAGS.local_data_dir, data_sub_dir.name)
-        ):
+        if not create_output_dir(os.path.join(args.local_data_dir, data_sub_dir.name)):
             print(
                 "Error creating local data directory %s"
-                % os.path.join(flags.FLAGS.local_data_dir, data_sub_dir.name)
+                % os.path.join(args.local_data_dir, data_sub_dir.name)
             )
             return
 
-    use_s3 = True if flags.FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if args.s3_bucket_name is not None else False
 
     if not use_s3:
         print("Local data directories created")
         return
 
-    if not s3_bucket_exists(flags.FLAGS.s3_bucket_name):
+    if not s3_bucket_exists(args.s3_bucket_name):
         print(
             "Bucket: %s either does not exist or you do not have access to it"
-            % flags.FLAGS.s3_bucket_name
+            % args.s3_bucket_name
         )
         return
 
-    print("Bucket: %s exists and you have access to it" % flags.FLAGS.s3_bucket_name)
+    print("Bucket: %s exists and you have access to it" % args.s3_bucket_name)
 
     local_label_file_exists = os.path.isfile(
-        os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)
+        os.path.join(args.local_data_dir, LABEL_FILE_NAME)
     )
 
     s3_label_file_exists = s3_file_exists(
-        flags.FLAGS.s3_bucket_name, "/".join([flags.FLAGS.s3_data_dir, LABEL_FILE_NAME])
+        args.s3_bucket_name, "/".join([args.s3_data_dir, LABEL_FILE_NAME])
     )
 
     if local_label_file_exists and not s3_label_file_exists:
         s3_upload_files(
-            flags.FLAGS.s3_bucket_name,
-            [os.path.join(flags.FLAGS.local_data_dir, LABEL_FILE_NAME)],
-            flags.FLAGS.s3_data_dir,
+            args.s3_bucket_name,
+            [os.path.join(args.local_data_dir, LABEL_FILE_NAME)],
+            args.s3_data_dir,
         )
     elif s3_label_file_exists and not local_label_file_exists:
         s3_download_files(
-            flags.FLAGS.s3_bucket_name,
-            ["/".join([flags.FLAGS.s3_data_dir, LABEL_FILE_NAME])],
-            flags.FLAGS.local_data_dir,
+            args.s3_bucket_name,
+            ["/".join([args.s3_data_dir, LABEL_FILE_NAME])],
+            args.local_data_dir,
         )
 
     for data_sub_dir in DATA_SUB_DIRS:
@@ -157,13 +141,34 @@ def main(unused_argv):
             )
         )
         sync_s3_and_local_dir(
-            flags.FLAGS.s3_bucket_name,
-            "/".join([flags.FLAGS.s3_data_dir, data_sub_dir.name]),
-            os.path.join(flags.FLAGS.local_data_dir, data_sub_dir.name),
+            args.s3_bucket_name,
+            "/".join([args.s3_data_dir, data_sub_dir.name]),
+            os.path.join(args.local_data_dir, data_sub_dir.name),
             data_sub_dir.file_type,
             data_sub_dir.max_to_download,
         )
 
 
 if __name__ == "__main__":
-    app.run(main)
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--local_data_dir", type=str, default=DEFAULT_LOCAL_DATA_DIR,
+    )
+
+    parser.add_argument("--s3_bucket_name", type=str)
+
+    parser.add_argument(
+        "--s3_data_dir",
+        type=str,
+        default=DEFAULT_S3_DATA_DIR,
+        help="Prefix of the s3 data objects",
+    )
+
+    args = parser.parse_args()
+
+    main(args)
+

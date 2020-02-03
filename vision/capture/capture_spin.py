@@ -5,8 +5,6 @@ import threading
 import typing
 import queue
 
-from absl import app, flags
-
 import cv2
 import numpy as np
 import PySpin
@@ -23,36 +21,6 @@ from .._settings import (
 )
 
 WINDOW_NAME = "Capture"
-
-FLAGS = flags.FLAGS
-
-flags.DEFINE_string(
-    "gentl_producer_path",
-    DEFAULT_GENTL_PRODUCER_PATH,
-    "Path to the GenTL producer .cti file to use.",
-)
-
-flags.DEFINE_integer(
-    "display_width", 1080, "Target image width for the display window.",
-)
-
-flags.DEFINE_integer("frame_rate", 30, "Frame rate to acquire images at.")
-
-flags.DEFINE_string(
-    "local_data_dir",
-    DEFAULT_LOCAL_DATA_DIR,
-    "Local parent directory of the image directory to store images.",
-)
-
-flags.DEFINE_string("s3_bucket_name", None, "S3 bucket to send images to.")
-
-flags.DEFINE_string(
-    "s3_data_dir", DEFAULT_S3_DATA_DIR, "Prefix of the s3 data objects."
-)
-
-flags.DEFINE_enum(
-    "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
-)
 
 
 def get_newest_image(cam, pixel_format):
@@ -87,7 +55,7 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
             break
 
         cv2.imshow(
-            WINDOW_NAME, retrieved_image.get_resized_image(FLAGS.display_width),
+            WINDOW_NAME, retrieved_image.get_resized_image(args.display_width),
         )
         keypress = cv2.waitKey(1)
         if keypress == 27:
@@ -99,7 +67,7 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
         elif keypress == 13:
             # Enter key pressed
             cv2.imshow(
-                WINDOW_NAME, retrieved_image.get_highlighted_image(FLAGS.display_width),
+                WINDOW_NAME, retrieved_image.get_highlighted_image(args.display_width),
             )
             save_queue.put(retrieved_image)
             cv2.waitKey(500)
@@ -110,14 +78,20 @@ def acquire_images(cam, save_queue: queue.Queue) -> None:
     print("Acquisition Ended.")
 
 
-def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
+def save_images(
+    save_queue: queue.Queue,
+    local_data_dir,
+    use_s3: bool = False,
+    s3_bucket_name: str = None,
+    s3_data_dir: str = None,
+) -> None:
 
     while True:
         image = save_queue.get(block=True)
         if image is None:
             break
         file_path = os.path.join(
-            FLAGS.local_data_dir,
+            args.local_data_dir,
             IMAGE_DIR_NAME,
             "%i.%s" % ((time.time() * 1000), IMAGE_FILE_TYPE),
         )
@@ -126,15 +100,15 @@ def save_images(save_queue: queue.Queue, use_s3: bool) -> None:
 
         if use_s3 and save_successfull:
             s3_upload_files(
-                FLAGS.s3_bucket_name,
+                args.s3_bucket_name,
                 [file_path],
-                "/".join([FLAGS.s3_data_dir, IMAGE_DIR_NAME]),
+                "/".join([args.s3_data_dir, IMAGE_DIR_NAME]),
             )
 
     print("Saving complete.")
 
 
-def apply_camera_settings(cam) -> None:
+def apply_camera_settings(cam, framerate: float = 30.0) -> None:
     # Configure newest only buffer handling
     s_node_map = cam.GetTLStreamNodeMap()
 
@@ -166,29 +140,27 @@ def apply_camera_settings(cam) -> None:
 
     # Configure frame rate
     cam.AcquisitionFrameRateEnable.SetValue(True)
-    cam.AcquisitionFrameRate.SetValue(
-        min(FLAGS.frame_rate, cam.AcquisitionFrameRate.GetMax())
-    )
+    cam.AcquisitionFrameRate.SetValue(min(framerate, cam.AcquisitionFrameRate.GetMax()))
     print("Acquisition frame rate set to: %3.1f" % cam.AcquisitionFrameRate.GetValue())
 
 
-def main(unused_argv):
+def main(args):
 
-    if not create_output_dir(os.path.join(FLAGS.local_data_dir, IMAGE_DIR_NAME)):
+    if not create_output_dir(os.path.join(args.local_data_dir, IMAGE_DIR_NAME)):
         print("Cannot create output annotations directory.")
         return
 
-    use_s3 = True if FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if args.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(args.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % FLAGS.s3_bucket_name
+                % args.s3_bucket_name
             )
         else:
-            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
+            print("Bucket: %s exists and you have access to it" % args.s3_bucket_name)
 
     # Retrieve singleton reference to system object
     system = PySpin.System.GetInstance()
@@ -219,7 +191,10 @@ def main(unused_argv):
 
     save_queue = queue.Queue()
 
-    save_thread = threading.Thread(target=save_images, args=(save_queue, use_s3,))
+    save_thread = threading.Thread(
+        target=save_images,
+        args=(save_queue, use_s3, args.s3_bucket_name, args.s3_data_dir,),
+    )
 
     save_thread.start()
 
@@ -237,4 +212,29 @@ def main(unused_argv):
 
 
 if __name__ == "__main__":
-    app.run(main)
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--s3_bucket_name", type=str)
+    parser.add_argument(
+        "--s3_data_dir",
+        type=str,
+        default=DEFAULT_S3_DATA_DIR,
+        help="Prefix of the s3 data objects",
+    )
+    parser.add_argument(
+        "--local_data_dir", type=str, default=DEFAULT_LOCAL_DATA_DIR,
+    )
+    parser.add_argument(
+        "--frame_rate", type=float, default=30.0,
+    )
+    parser.add_argument(
+        "--display_width", type=int, default=1080,
+    )
+
+    args = parser.parse_args()
+
+    main(args)
+

@@ -1,6 +1,5 @@
 import os
 
-from absl import app, flags
 from genicam.gentl import TimeoutException
 from harvesters.core import Harvester
 
@@ -28,41 +27,6 @@ from .._settings import (
 matplotlib.use("TKAgg")
 
 INFERENCE_WINDOW_NAME = "Inference"
-
-FLAGS = flags.FLAGS
-
-flags.DEFINE_string(
-    "gentl_producer_path",
-    DEFAULT_GENTL_PRODUCER_PATH,
-    "Path to the GenTL producer .cti file to use.",
-)
-
-flags.DEFINE_string(
-    "s3_bucket_name", None, "S3 bucket to retrieve images from and upload manifest to."
-)
-
-flags.DEFINE_string(
-    "s3_data_dir", DEFAULT_S3_DATA_DIR, "Prefix of the s3 data objects."
-)
-
-
-flags.DEFINE_string(
-    "local_data_dir", DEFAULT_LOCAL_DATA_DIR, "Local data directory.",
-)
-
-flags.DEFINE_float(
-    "threshold", 0.5, "The threshold above which to display predicted bounding boxes"
-)
-
-flags.DEFINE_string("model_path", None, "The model to load. Default is newest.")
-
-
-flags.DEFINE_integer("frame_rate", 30, "Frame rate to acquire images at.")
-
-
-flags.DEFINE_enum(
-    "network", NETWORKS[0], NETWORKS, "The neural network to use for object detection",
-)
 
 
 def get_newest_saved_model_path(model_dir_path: str, filter_keyword=None) -> str:
@@ -97,14 +61,16 @@ def key_press(event, continue_streaming):
         continue_streaming[0] = False
 
 
-def display_images(cam, labels, saved_model_file_path) -> None:
+def display_images(
+    cam, labels, network_type, saved_model_file_path, threshold=0.5
+) -> None:
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # get the model using our helper function
-    model = _models.__dict__[FLAGS.network](
+    model = _models.__dict__[network_type](
         len(labels),
-        box_score_thresh=FLAGS.threshold,
+        box_score_thresh=threshold,
         min_size=600,
         max_size=800,
         box_nms_thresh=0.3,
@@ -164,8 +130,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
                     outputs[0]["scores"][j],
                 )
                 for j in range(len(outputs[0]["boxes"]))
-                if outputs[0]["scores"][j] > FLAGS.threshold
-                and outputs[0]["labels"][j] > 0
+                if outputs[0]["scores"][j] > threshold and outputs[0]["labels"][j] > 0
             ]
 
             inference_boxes, inference_labels, inference_scores = (
@@ -191,7 +156,7 @@ def display_images(cam, labels, saved_model_file_path) -> None:
     cam.stop_image_acquisition()
 
 
-def apply_camera_settings(cam) -> None:
+def apply_camera_settings(cam, framerate=30.0) -> None:
     # Configure newest only buffer handling
     cam.keep_latest = True
     cam.num_filled_buffers_to_hold = 1
@@ -199,7 +164,7 @@ def apply_camera_settings(cam) -> None:
     # Configure frame rate
     cam.remote_device.node_map.AcquisitionFrameRateEnable.value = True
     cam.remote_device.node_map.AcquisitionFrameRate.value = min(
-        FLAGS.frame_rate, cam.remote_device.node_map.AcquisitionFrameRate.max
+        framerate, cam.remote_device.node_map.AcquisitionFrameRate.max
     )
     print(
         "Acquisition frame rate set to: %3.1f"
@@ -207,31 +172,31 @@ def apply_camera_settings(cam) -> None:
     )
 
 
-def main(unused_argv):
+def main(args):
 
-    use_s3 = True if FLAGS.s3_bucket_name is not None else False
+    use_s3 = True if args.s3_bucket_name is not None else False
 
     if use_s3:
-        if not s3_bucket_exists(FLAGS.s3_bucket_name):
+        if not s3_bucket_exists(args.s3_bucket_name):
             use_s3 = False
             print(
                 "Bucket: %s either does not exist or you do not have access to it"
-                % FLAGS.s3_bucket_name
+                % args.s3_bucket_name
             )
         else:
-            print("Bucket: %s exists and you have access to it" % FLAGS.s3_bucket_name)
+            print("Bucket: %s exists and you have access to it" % args.s3_bucket_name)
 
     if use_s3:
         # Get the newest model
         s3_download_highest_numbered_file(
-            FLAGS.s3_bucket_name,
-            "/".join([FLAGS.s3_data_dir, MODEL_STATE_DIR_NAME]),
-            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME),
+            args.s3_bucket_name,
+            "/".join([args.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME),
             MODEL_STATE_FILE_TYPE,
-            FLAGS.network,
+            args.network,
         )
 
-    label_file_path = os.path.join(FLAGS.local_data_dir, LABEL_FILE_NAME)
+    label_file_path = os.path.join(args.local_data_dir, LABEL_FILE_NAME)
     if not os.path.isfile(label_file_path):
         print("Missing file %s" % label_file_path)
         return
@@ -250,10 +215,10 @@ def main(unused_argv):
     print(labels)
 
     saved_model_file_path = (
-        FLAGS.model_path
-        if FLAGS.model_path is not None
+        args.model_path
+        if args.model_path is not None
         else get_newest_saved_model_path(
-            os.path.join(FLAGS.local_data_dir, MODEL_STATE_DIR_NAME), FLAGS.network,
+            os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME), args.network,
         )
     )
 
@@ -262,9 +227,9 @@ def main(unused_argv):
         return
 
     h = Harvester()
-    h.add_cti_file(FLAGS.gentl_producer_path)
+    h.add_cti_file(args.gentl_producer_path)
     if len(h.cti_files) == 0:
-        print("No valid cti file found at %s" % FLAGS.gentl_producer_path)
+        print("No valid cti file found at %s" % args.gentl_producer_path)
         h.reset()
         return
     print("Currently available genTL Producer CTI files: ", h.cti_files)
@@ -282,7 +247,7 @@ def main(unused_argv):
 
     apply_camera_settings(cam)
 
-    display_images(cam, labels, saved_model_file_path)
+    display_images(cam, labels, args.network, saved_model_file_path, args.threshold)
 
     # clean up
     cam.destroy()
@@ -292,4 +257,46 @@ def main(unused_argv):
 
 
 if __name__ == "__main__":
-    app.run(main)
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--gentl_producer_path",
+        type=str,
+        default=DEFAULT_GENTL_PRODUCER_PATH,
+        help="Path to the GenTL producer .cti file to use",
+    )
+    parser.add_argument("--s3_bucket_name", type=str)
+    parser.add_argument(
+        "--s3_data_dir",
+        type=str,
+        default=DEFAULT_S3_DATA_DIR,
+        help="Prefix of the s3 data objects",
+    )
+    parser.add_argument(
+        "--local_data_dir", type=str, default=DEFAULT_LOCAL_DATA_DIR,
+    )
+    parser.add_argument("--model_path", type=str, help="The model to load")
+    parser.add_argument(
+        "--network",
+        type=str,
+        choices=NETWORKS,
+        default=NETWORKS[0],
+        help="The neural network to use for object detection",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.5,
+        help="The threshold above which to display predicted bounding boxes",
+    )
+    parser.add_argument(
+        "--frame_rate", type=float, default=30.0,
+    )
+
+    args = parser.parse_args()
+
+    main(args)
+

@@ -20,7 +20,7 @@ from .._s3_utils import (
     s3_upload_files,
     s3_download_dir,
 )
-from .transforms import ToTensor, RandomHorizontalFlip, Compose
+from .train import train_model, plot_metrics
 from .train_utils import collate_fn
 from .._settings import (
     DEFAULT_LOCAL_DATA_DIR,

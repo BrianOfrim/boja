@@ -1,5 +1,8 @@
 import torch
 
+# class HyperParameters():
+#     def __init__(self, optimizer_name, lr_scheduler, batch)
+
 
 def get_optimizer(optimizer_name, params, **kwargs):
     if optimizer_name.lower() == "sgd":

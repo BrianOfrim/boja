@@ -13,14 +13,14 @@ import torch
 from .datasets import BojaDataSet
 from .engine import train_one_epoch, evaluate
 from .._file_utils import create_output_dir, get_highest_numbered_file
-from . import _hparms
+from . import _hparams
 from .. import _models
 from .._s3_utils import (
     s3_bucket_exists,
     s3_upload_files,
     s3_download_dir,
 )
-from .train import train_model, plot_metrics
+from . import train
 from .train_utils import collate_fn
 from .._settings import (
     DEFAULT_LOCAL_DATA_DIR,
@@ -67,80 +67,13 @@ def main(args):
             print("Bucket: %s exists and you have access to it" % args.s3_bucket_name)
 
     if use_s3:
-        # Download any new images from s3
-        s3_download_dir(
-            args.s3_bucket_name,
-            "/".join([args.s3_data_dir, IMAGE_DIR_NAME]),
-            os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
-            IMAGE_FILE_TYPE,
-        )
-
-        # Download any new annotation files from s3
-        s3_download_dir(
-            args.s3_bucket_name,
-            "/".join([args.s3_data_dir, ANNOTATION_DIR_NAME]),
-            os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
-            ANNOTATION_FILE_TYPE,
-        )
-
-        # Download any new manifests files from s3
-        s3_download_dir(
-            args.s3_bucket_name,
-            "/".join([args.s3_data_dir, MANIFEST_DIR_NAME]),
-            os.path.join(args.local_data_dir, MANIFEST_DIR_NAME),
-            MANIFEST_FILE_TYPE,
-        )
+        train.sync_s3(args)
 
     label_file_path = os.path.join(args.local_data_dir, LABEL_FILE_NAME)
-    if not os.path.isfile(label_file_path):
-        print("Missing file %s" % label_file_path)
-        return
 
-    # read in the category labels
-    labels = open(label_file_path).read().splitlines()
+    labels = train.get_labels(label_file_path)
 
-    if len(labels) == 0:
-        print("No label categories found in %s" % label_file_path)
-        return
-
-    # add the background class
-    labels.insert(0, "background")
-
-    newest_manifest_file = get_newest_manifest_path(
-        os.path.join(args.local_data_dir, MANIFEST_DIR_NAME)
-    )
-
-    if newest_manifest_file is None:
-        print(
-            "Cannot find a manifest file in: %s"
-            % (os.path.join(args.local_data_dir, MANIFEST_DIR_NAME))
-        )
-
-    # use our dataset and defined transformations
-    dataset = BojaDataSet(
-        os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
-        os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
-        newest_manifest_file,
-        labels,
-        training=True,
-    )
-
-    dataset_test = BojaDataSet(
-        os.path.join(args.local_data_dir, IMAGE_DIR_NAME),
-        os.path.join(args.local_data_dir, ANNOTATION_DIR_NAME),
-        newest_manifest_file,
-        labels,
-        training=False,
-    )
-
-    # split the dataset in train and test set
-    indices = torch.randperm(len(dataset)).tolist()
-
-    # use 20 percent of the dataset for testing
-    num_test = int(0.2 * len(dataset))
-
-    dataset = torch.utils.data.Subset(dataset, indices[: -1 * num_test])
-    dataset_test = torch.utils.data.Subset(dataset_test, indices[-1 * num_test :])
+    dataset, dataset_test = train.get_datasets(labels, args)
 
     print(
         "Training dataset size: %d, Testing dataset size: %d"
@@ -154,13 +87,13 @@ def main(args):
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = _hparms.get_optimizer(
+    optimizer = _hparams.get_optimizer(
         "sgd", params, lr=0.005, momentum=0.9, weight_decay=0.0005
     )
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-    model_state, metrics = train_model(
+    model_state, metrics = train.train_model(
         model,
         dataset,
         dataset_test,
@@ -181,7 +114,7 @@ def main(args):
     # Save the model state to a file
     torch.save(model_state, model_state_file_path)
 
-    log_file_path = plot_metrics(run_name, metrics)
+    log_file_path = train.plot_metrics(run_name, metrics)
 
     print("Model state saved at: %s" % model_state_file_path)
 

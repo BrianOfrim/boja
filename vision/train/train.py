@@ -243,9 +243,7 @@ def main(args):
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = _hparams.get_optimizer(
-        "sgd", params, lr=0.005, momentum=0.9, weight_decay=0.0005
-    )
+    optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 

@@ -82,75 +82,102 @@ def main(args):
 
     num_classes = len(labels)
 
-    hparam = {
-        "optimizer": {
-            "name": "SGD",
-            "args": {"lr": 0.005, "momentum": 0.9, "weight_decay": 0.0005},
-        },
-        "lr_scheduler": {
-            "name": "StepLR",
-            "args": {
-                "step_size": int(_hparams.get_random_uniform(1, 4)),
-                "gamma": _hparams.get_random_uniform(0.05, 0.3),
-            },
-        },
-    }
-
-    print(hparam)
-
-    # get the model using our helper function
-    model = _models.__dict__[args.network](num_classes)
-
-    # construct an optimizer
-    params = [p for p in model.parameters() if p.requires_grad]
-
-    optimizer = torch.optim.__dict__[hparam["optimizer"]["name"]](
-        params, **hparam["optimizer"]["args"]
+    optimizer_choices = _hparams.RandomHPChoices(
+        [
+            _hparams.Optimizer(
+                name="SGD",
+                options={
+                    "lr": _hparams.RandomUniform(min_val=0.001, max_val=0.01),
+                    "momentum": _hparams.RandomNormal(
+                        mean=0.5, std=0.25, min_val=0.0, max_val=1.0
+                    ),
+                    "weight_decay": _hparams.RandomUniform(
+                        min_val=0.0001, max_val=0.001
+                    ),
+                },
+            ),
+            _hparams.Optimizer(
+                name="Adam",
+                options={"lr": _hparams.RandomUniform(min_val=0.001, max_val=0.01),},
+            ),
+        ]
     )
 
-    # and a learning rate scheduler
-    lr_scheduler = torch.optim.lr_scheduler.__dict__[hparam["lr_scheduler"]["name"]](
-        optimizer, **hparam["lr_scheduler"]["args"]
+    lr_scheduler_choices = _hparams.RandomHPChoices(
+        [
+            _hparams.LRScheduler(
+                name="StepLR",
+                options={
+                    "step_size": _hparams.RandomUniform(1, 4),
+                    "gamma": _hparams.RandomUniform(0.05, 0.3),
+                },
+            )
+        ]
     )
 
-    model_state, metrics = train.train_model(
-        model,
-        dataset,
-        dataset_test,
-        lr_scheduler,
-        optimizer,
-        num_epochs=args.num_epochs,
-    )
+    # optimizer = torch.optim.__dict__[hparam["optimizer"]["name"]](
+    #     params, **hparam["optimizer"]["args"]
+    # )
 
-    model_state_local_dir = os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME)
-    # Create model state directory if it does not exist yet
-    create_output_dir(model_state_local_dir)
-    run_name = "%s-%s" % (str(start_time), args.network)
+    # # and a learning rate scheduler
+    # lr_scheduler = torch.optim.lr_scheduler.__dict__[hparam["lr_scheduler"]["name"]](
+    #     optimizer, **hparam["lr_scheduler"]["args"]
+    # )
 
-    model_state_file_path = os.path.join(
-        model_state_local_dir, "%s.%s" % (run_name, MODEL_STATE_FILE_TYPE),
-    )
+    for i in range(10):
+        # get the model using our helper function
+        model = _models.__dict__[args.network](num_classes)
 
-    # Save the model state to a file
-    torch.save(model_state, model_state_file_path)
+        # construct an optimizer
+        params = [p for p in model.parameters() if p.requires_grad]
 
-    log_file_path = train.plot_metrics(run_name, metrics)
+        optimizer_choice = optimizer_choices.get_next()
+        optimizer_choice.set_params(params)
+        optimizer = optimizer_choice.get_next()
 
-    print("Model state saved at: %s" % model_state_file_path)
+        lr_scheduler_choice = lr_scheduler_choices.get_next()
+        lr_scheduler_choice.set_optimizer(optimizer)
+        lr_scheduler = lr_scheduler_choice.get_next()
 
-    if use_s3:
-        # Send the saved model and logs to S3
-        s3_upload_files(
-            args.s3_bucket_name,
-            [model_state_file_path],
-            "/".join([args.s3_data_dir, MODEL_STATE_DIR_NAME]),
+        model_state, metrics = train.train_model(
+            model,
+            dataset,
+            dataset_test,
+            lr_scheduler,
+            optimizer,
+            num_epochs=args.num_epochs,
         )
-        s3_upload_files(
-            args.s3_bucket_name,
-            [log_file_path],
-            "/".join([args.s3_data_dir, LOGS_DIR_NAME]),
-        )
-    print("Training complete")
+
+        # model_state_local_dir = os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME)
+        # # Create model state directory if it does not exist yet
+        # create_output_dir(model_state_local_dir)
+        run_name = "%s--%s" % (str(time.time()), args.network)
+
+        # model_state_file_path = os.path.join(
+        #     model_state_local_dir, "%s.%s" % (run_name, MODEL_STATE_FILE_TYPE),
+        # )
+
+        # Save the model state to a file
+        # torch.save(model_state, model_state_file_path)
+
+        log_file_path = train.plot_metrics(run_name, metrics)
+
+        # print("Model state saved at: %s" % model_state_file_path)
+
+        if use_s3:
+            # Send the saved model and logs to S3
+            # s3_upload_files(
+            #     args.s3_bucket_name,
+            #     [model_state_file_path],
+            #     "/".join([args.s3_data_dir, MODEL_STATE_DIR_NAME]),
+            # )
+            s3_upload_files(
+                args.s3_bucket_name,
+                [log_file_path],
+                "/".join([args.s3_data_dir, LOGS_DIR_NAME]),
+            )
+
+        print("Training complete")
 
 
 if __name__ == "__main__":

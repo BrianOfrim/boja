@@ -87,8 +87,16 @@ def main(args):
             "name": "SGD",
             "args": {"lr": 0.005, "momentum": 0.9, "weight_decay": 0.0005},
         },
-        "lr_scheduler": {"name": "StepLR", "args": {"step_size": 3, "gamma": 0.1}},
+        "lr_scheduler": {
+            "name": "StepLR",
+            "args": {
+                "step_size": int(_hparams.get_random_uniform(1, 4)),
+                "gamma": _hparams.get_random_uniform(0.05, 0.3),
+            },
+        },
     }
+
+    print(hparam)
 
     # get the model using our helper function
     model = _models.__dict__[args.network](num_classes)

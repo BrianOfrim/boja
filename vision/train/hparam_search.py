@@ -54,6 +54,8 @@ def main(args):
 
     start_time = int(time.time())
 
+    session_name = "%s-%s" % (start_time, args.network)
+
     use_s3 = True if args.s3_bucket_name is not None else False
 
     if use_s3:
@@ -115,18 +117,23 @@ def main(args):
         ]
     )
 
-    # optimizer = torch.optim.__dict__[hparam["optimizer"]["name"]](
-    #     params, **hparam["optimizer"]["args"]
-    # )
+    log_file = open(
+        os.path.join(
+            args.local_data_dir, LOGS_DIR_NAME, "%s-hp_search_log.txt" % session_name
+        ),
+        "w",
+    )
 
-    # # and a learning rate scheduler
-    # lr_scheduler = torch.optim.lr_scheduler.__dict__[hparam["lr_scheduler"]["name"]](
-    #     optimizer, **hparam["lr_scheduler"]["args"]
-    # )
+    stat_totals = {AVERAGE_PRECISION_STAT_LABEL: {}, AVERAGE_RECALL_STAT_LABEL: {}}
 
-    for i in range(10):
+    for i in range(args.num_trials):
+
+        run_time = int(time.time())
+
+        log_file.write("[%i]Run:%d, start time:%d\n" % (i, i, run_time))
         # get the model using our helper function
         model = _models.__dict__[args.network](num_classes)
+        log_file.write("[%i]Model: %s\n" % (i, args.network))
 
         # construct an optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -134,10 +141,14 @@ def main(args):
         optimizer_choice = optimizer_choices.get_next()
         optimizer_choice.set_params(params)
         optimizer = optimizer_choice.get_next()
+        log_file.write("[%i]Optimizer choice: %s\n" % (i, optimizer_choice.name))
+        log_file.write("[%i]Optimizer defaults: %s\n" % (i, optimizer.defaults))
 
         lr_scheduler_choice = lr_scheduler_choices.get_next()
         lr_scheduler_choice.set_optimizer(optimizer)
         lr_scheduler = lr_scheduler_choice.get_next()
+        log_file.write("[%i]LR Scheduler choice: %s\n" % (i, lr_scheduler_choice.name))
+        # log_file.write("[%i]LR Scheduler defaults: %s\n" % (i, lr_scheduler.defaults))
 
         model_state, metrics = train.train_model(
             model,
@@ -148,36 +159,62 @@ def main(args):
             num_epochs=args.num_epochs,
         )
 
-        # model_state_local_dir = os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME)
-        # # Create model state directory if it does not exist yet
-        # create_output_dir(model_state_local_dir)
-        run_name = "%s--%s" % (str(time.time()), args.network)
+        log_file.write(
+            "[%i]%s: %s\n"
+            % (i, AVERAGE_PRECISION_STAT_LABEL, metrics[AVERAGE_PRECISION_STAT_LABEL])
+        )
+        log_file.write(
+            "[%i]%s: %s\n"
+            % (i, AVERAGE_RECALL_STAT_LABEL, metrics[AVERAGE_RECALL_STAT_LABEL])
+        )
 
-        # model_state_file_path = os.path.join(
-        #     model_state_local_dir, "%s.%s" % (run_name, MODEL_STATE_FILE_TYPE),
-        # )
+        stat_totals[AVERAGE_PRECISION_STAT_LABEL][i] = metrics[
+            AVERAGE_PRECISION_STAT_LABEL
+        ]
+        stat_totals[AVERAGE_RECALL_STAT_LABEL][i] = metrics[AVERAGE_RECALL_STAT_LABEL]
 
-        # Save the model state to a file
-        # torch.save(model_state, model_state_file_path)
+    print("Training complete")
 
-        log_file_path = train.plot_metrics(run_name, metrics)
+    log_image_local_dir = os.path.join(args.local_data_dir, LOGS_DIR_NAME)
+    create_output_dir(log_image_local_dir)
 
-        # print("Model state saved at: %s" % model_state_file_path)
+    # create the AP plot
+    for k, v in stat_totals[AVERAGE_PRECISION_STAT_LABEL].items():
+        plt.plot(v, label=str(k))
 
-        if use_s3:
-            # Send the saved model and logs to S3
-            # s3_upload_files(
-            #     args.s3_bucket_name,
-            #     [model_state_file_path],
-            #     "/".join([args.s3_data_dir, MODEL_STATE_DIR_NAME]),
-            # )
-            s3_upload_files(
-                args.s3_bucket_name,
-                [log_file_path],
-                "/".join([args.s3_data_dir, LOGS_DIR_NAME]),
-            )
+    plt.legend(loc="lower right")
+    plt.title("%s from session %s" % (AVERAGE_PRECISION_STAT_LABEL, session_name))
+    plt.xlabel("Epoch")
 
-        print("Training complete")
+    log_file_path_AP = os.path.join(
+        log_image_local_dir, "%s-AP.jpg" % str(session_name)
+    )
+    plt.savefig(log_file_path_AP)
+
+    plt.clf()
+
+    # create the AR plot
+    for k, v in stat_totals[AVERAGE_RECALL_STAT_LABEL].items():
+        plt.plot(v, label=str(k))
+
+    plt.legend(loc="lower right")
+    plt.title("%s from session %s" % (AVERAGE_RECALL_STAT_LABEL, session_name))
+    plt.xlabel("Epoch")
+
+    log_file_path_AR = os.path.join(
+        log_image_local_dir, "%s-AR.jpg" % str(session_name)
+    )
+    plt.savefig(log_file_path)
+
+    log_file.close()
+    plt.close()
+
+    if use_s3:
+        s3_upload_files(
+            args.s3_bucket_name,
+            [log_file_path_AP.log_file_path_AR],
+            "/".join([args.s3_data_dir, LOGS_DIR_NAME]),
+        )
 
 
 if __name__ == "__main__":
@@ -209,6 +246,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--num_epochs", type=int, default=10,
+    )
+    parser.add_argument(
+        "--num_trials",
+        type=int,
+        default=10,
+        help="Number of random trials to run in search.",
     )
 
     args = parser.parse_args()

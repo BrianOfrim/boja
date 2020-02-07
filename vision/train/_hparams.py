@@ -17,6 +17,8 @@ class HyperParameter:
                 formatted_options[k] = v.get_next()
             else:
                 formatted_options[k] = v
+
+        print("formatted optoins")
         return formatted_options
 
     def get_next(self):

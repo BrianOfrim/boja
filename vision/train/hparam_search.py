@@ -142,13 +142,24 @@ def main(args):
         optimizer_choice.set_params(params)
         optimizer = optimizer_choice.get_next()
         log_file.write("[%i]Optimizer choice: %s\n" % (i, optimizer_choice.name))
-        log_file.write("[%i]Optimizer defaults: %s\n" % (i, optimizer.defaults))
+        log_file.write("[%i]Optimizer properties: %s\n" % (i, optimizer.defaults))
 
         lr_scheduler_choice = lr_scheduler_choices.get_next()
         lr_scheduler_choice.set_optimizer(optimizer)
         lr_scheduler = lr_scheduler_choice.get_next()
+
         log_file.write("[%i]LR Scheduler choice: %s\n" % (i, lr_scheduler_choice.name))
-        # log_file.write("[%i]LR Scheduler defaults: %s\n" % (i, lr_scheduler.defaults))
+        log_file.write(
+            "[%i]LR Scheduler properties: %s\n"
+            % (
+                i,
+                {
+                    key: value
+                    for key, value in lr_scheduler.__dict__.items()
+                    if key != "optimizer"
+                },
+            )
+        )
 
         model_state, metrics = train.train_model(
             model,
@@ -186,10 +197,10 @@ def main(args):
     plt.title("%s from session %s" % (AVERAGE_PRECISION_STAT_LABEL, session_name))
     plt.xlabel("Epoch")
 
-    log_file_path_AP = os.path.join(
+    plot_file_path_AP = os.path.join(
         log_image_local_dir, "%s-AP.jpg" % str(session_name)
     )
-    plt.savefig(log_file_path_AP)
+    plt.savefig(plot_file_path_AP)
 
     plt.clf()
 
@@ -201,10 +212,10 @@ def main(args):
     plt.title("%s from session %s" % (AVERAGE_RECALL_STAT_LABEL, session_name))
     plt.xlabel("Epoch")
 
-    log_file_path_AR = os.path.join(
+    plot_file_path_AR = os.path.join(
         log_image_local_dir, "%s-AR.jpg" % str(session_name)
     )
-    plt.savefig(log_file_path)
+    plt.savefig(plot_file_path_AR)
 
     log_file.close()
     plt.close()
@@ -212,7 +223,7 @@ def main(args):
     if use_s3:
         s3_upload_files(
             args.s3_bucket_name,
-            [log_file_path_AP.log_file_path_AR],
+            [plot_file_path_AP, plot_file_path_AR, log_file.name],
             "/".join([args.s3_data_dir, LOGS_DIR_NAME]),
         )
 

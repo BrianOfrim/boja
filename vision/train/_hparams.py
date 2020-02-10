@@ -18,7 +18,6 @@ class HyperParameter:
             else:
                 formatted_options[k] = v
 
-        print("formatted optoins")
         return formatted_options
 
     def get_next(self):
@@ -60,7 +59,7 @@ class LRScheduler(HyperParameter):
         if self.optimizer is None:
             raise RuntimeError("Optimizer value has not been provided.")
         return torch.optim.lr_scheduler.__dict__[self.name](
-            self.optimizer, **self.options
+            self.optimizer, **self._format_options()
         )
 
 

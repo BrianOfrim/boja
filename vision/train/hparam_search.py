@@ -91,7 +91,7 @@ def main(args):
                 options={
                     "lr": _hparams.RandomUniform(min_val=0.001, max_val=0.01),
                     "momentum": _hparams.RandomNormal(
-                        mean=0.5, std=0.25, min_val=0.0, max_val=1.0
+                        mean=0.5, std=0.2, min_val=0.0, max_val=0.95
                     ),
                     "weight_decay": _hparams.RandomUniform(
                         min_val=0.0001, max_val=0.001
@@ -100,7 +100,7 @@ def main(args):
             ),
             _hparams.Optimizer(
                 name="Adam",
-                options={"lr": _hparams.RandomUniform(min_val=0.001, max_val=0.01),},
+                options={"lr": _hparams.RandomUniform(min_val=0.005, max_val=0.05),},
             ),
         ]
     )
@@ -110,7 +110,7 @@ def main(args):
             _hparams.LRScheduler(
                 name="StepLR",
                 options={
-                    "step_size": _hparams.RandomUniform(1, 4),
+                    "step_size": _hparams.RandomUniform(2, 4),
                     "gamma": _hparams.RandomUniform(0.05, 0.3),
                 },
             )
@@ -173,7 +173,7 @@ def main(args):
         except RuntimeError as err:
             log_file.write("Training failed:")
             log_file.write("Error: %s" % err)
-            print(err)
+            print("Error: %s" % err)
             continue
 
         log_file.write(

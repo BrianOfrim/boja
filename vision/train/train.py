@@ -3,6 +3,7 @@
 
 import os
 import time
+import sys
 from typing import List
 import re
 
@@ -249,14 +250,18 @@ def main(args):
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-    model_state, metrics = train_model(
-        model,
-        dataset,
-        dataset_test,
-        lr_scheduler,
-        optimizer,
-        num_epochs=args.num_epochs,
-    )
+    try:
+        model_state, metrics = train_model(
+            model,
+            dataset,
+            dataset_test,
+            lr_scheduler,
+            optimizer,
+            num_epochs=args.num_epochs,
+        )
+    except RuntimeError as err:
+        print("Error: %s" % err)
+        sys.exit(1)
 
     model_state_local_dir = os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME)
     # Create model state directory if it does not exist yet

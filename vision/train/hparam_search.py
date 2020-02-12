@@ -50,7 +50,8 @@ def get_newest_manifest_path(manifest_dir_path: str) -> str:
     return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
 
 
-def log_and_print(log_file, message):
+def log_and_print(log_file, trial_num, message):
+    message = "Trial [%d]: %s" % (trial_num, message)
     print(message)
     log_file.write("%s\n" % message)
 
@@ -145,10 +146,10 @@ def main(args):
 
         run_time = int(time.time())
 
-        log_and_print(log_file, "[%i]Run:%d, start time:%d" % (i, i, run_time))
+        log_and_print(log_file, i, "start time:%d" % run_time)
         # get the model using our helper function
         model = _models.__dict__[args.network](num_classes)
-        log_and_print(log_file, "[%i]Model: %s" % (i, args.network))
+        log_and_print(log_file, i, "Model = %s" % args.network)
 
         # construct an optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -156,29 +157,23 @@ def main(args):
         optimizer_choice = optimizer_choices.get_next()
         optimizer_choice.set_params(params)
         optimizer = optimizer_choice.get_next()
-        log_and_print(log_file, "[%i]Optimizer choice: %s" % (i, optimizer_choice.name))
-        log_and_print(
-            log_file, "[%i]Optimizer properties: %s" % (i, optimizer.defaults)
-        )
+        log_and_print(log_file, i, "optimizer choice: %s" % optimizer_choice.name)
+        log_and_print(log_file, i, "optimizer properties: %s" % optimizer.defaults)
 
         lr_scheduler_choice = lr_scheduler_choices.get_next()
         lr_scheduler_choice.set_optimizer(optimizer)
         lr_scheduler = lr_scheduler_choice.get_next()
 
-        log_and_print(
-            log_file, "[%i]LR Scheduler choice: %s" % (i, lr_scheduler_choice.name)
-        )
+        log_and_print(log_file, i, "LR Scheduler choice: %s" % lr_scheduler_choice.name)
         log_and_print(
             log_file,
-            "[%i]LR Scheduler properties: %s"
-            % (
-                i,
-                {
-                    key: value
-                    for key, value in lr_scheduler.__dict__.items()
-                    if key != "optimizer"
-                },
-            ),
+            i,
+            "LR Scheduler properties: %s"
+            % {
+                key: value
+                for key, value in lr_scheduler.__dict__.items()
+                if key != "optimizer"
+            },
         )
 
         try:
@@ -191,19 +186,20 @@ def main(args):
                 num_epochs=args.num_epochs,
             )
         except RuntimeError as err:
-            log_and_print(log_file, "Training failed:")
-            log_and_print(log_file, "Error: %s" % err)
+            log_and_print(log_file, i, "Training failed: %s" % err)
             continue
 
         log_and_print(
             log_file,
-            "[%i]%s: %s"
-            % (i, AVERAGE_PRECISION_STAT_LABEL, metrics[AVERAGE_PRECISION_STAT_LABEL]),
+            i,
+            "%s: %s"
+            % (AVERAGE_PRECISION_STAT_LABEL, metrics[AVERAGE_PRECISION_STAT_LABEL]),
         )
+
         log_and_print(
             log_file,
-            "[%i]%s: %s"
-            % (i, AVERAGE_RECALL_STAT_LABEL, metrics[AVERAGE_RECALL_STAT_LABEL]),
+            i,
+            "%s: %s" % (AVERAGE_RECALL_STAT_LABEL, metrics[AVERAGE_RECALL_STAT_LABEL]),
         )
 
         stat_totals[AVERAGE_PRECISION_STAT_LABEL][i] = metrics[

@@ -50,6 +50,11 @@ def get_newest_manifest_path(manifest_dir_path: str) -> str:
     return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
 
 
+def log_and_print(log_file, message):
+    print(message)
+    log_file.write("%s\n" % message)
+
+
 def main(args):
 
     start_time = int(time.time())
@@ -140,10 +145,10 @@ def main(args):
 
         run_time = int(time.time())
 
-        log_file.write("[%i]Run:%d, start time:%d\n" % (i, i, run_time))
+        log_and_print(log_file, "[%i]Run:%d, start time:%d" % (i, i, run_time))
         # get the model using our helper function
         model = _models.__dict__[args.network](num_classes)
-        log_file.write("[%i]Model: %s\n" % (i, args.network))
+        log_and_print(log_file, "[%i]Model: %s" % (i, args.network))
 
         # construct an optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -151,16 +156,21 @@ def main(args):
         optimizer_choice = optimizer_choices.get_next()
         optimizer_choice.set_params(params)
         optimizer = optimizer_choice.get_next()
-        log_file.write("[%i]Optimizer choice: %s\n" % (i, optimizer_choice.name))
-        log_file.write("[%i]Optimizer properties: %s\n" % (i, optimizer.defaults))
+        log_and_print(log_file, "[%i]Optimizer choice: %s" % (i, optimizer_choice.name))
+        log_and_print(
+            log_file, "[%i]Optimizer properties: %s" % (i, optimizer.defaults)
+        )
 
         lr_scheduler_choice = lr_scheduler_choices.get_next()
         lr_scheduler_choice.set_optimizer(optimizer)
         lr_scheduler = lr_scheduler_choice.get_next()
 
-        log_file.write("[%i]LR Scheduler choice: %s\n" % (i, lr_scheduler_choice.name))
-        log_file.write(
-            "[%i]LR Scheduler properties: %s\n"
+        log_and_print(
+            log_file, "[%i]LR Scheduler choice: %s" % (i, lr_scheduler_choice.name)
+        )
+        log_and_print(
+            log_file,
+            "[%i]LR Scheduler properties: %s"
             % (
                 i,
                 {
@@ -168,7 +178,7 @@ def main(args):
                     for key, value in lr_scheduler.__dict__.items()
                     if key != "optimizer"
                 },
-            )
+            ),
         )
 
         try:
@@ -181,18 +191,19 @@ def main(args):
                 num_epochs=args.num_epochs,
             )
         except RuntimeError as err:
-            log_file.write("Training failed:")
-            log_file.write("Error: %s" % err)
-            print("Error: %s" % err)
+            log_and_print(log_file, "Training failed:")
+            log_and_print(log_file, "Error: %s" % err)
             continue
 
-        log_file.write(
-            "[%i]%s: %s\n"
-            % (i, AVERAGE_PRECISION_STAT_LABEL, metrics[AVERAGE_PRECISION_STAT_LABEL])
+        log_and_print(
+            log_file,
+            "[%i]%s: %s"
+            % (i, AVERAGE_PRECISION_STAT_LABEL, metrics[AVERAGE_PRECISION_STAT_LABEL]),
         )
-        log_file.write(
-            "[%i]%s: %s\n"
-            % (i, AVERAGE_RECALL_STAT_LABEL, metrics[AVERAGE_RECALL_STAT_LABEL])
+        log_and_print(
+            log_file,
+            "[%i]%s: %s"
+            % (i, AVERAGE_RECALL_STAT_LABEL, metrics[AVERAGE_RECALL_STAT_LABEL]),
         )
 
         stat_totals[AVERAGE_PRECISION_STAT_LABEL][i] = metrics[
@@ -200,7 +211,7 @@ def main(args):
         ]
         stat_totals[AVERAGE_RECALL_STAT_LABEL][i] = metrics[AVERAGE_RECALL_STAT_LABEL]
 
-    print("Training complete")
+    print("Training session complete")
 
     log_image_local_dir = os.path.join(args.local_data_dir, LOGS_DIR_NAME)
     create_output_dir(log_image_local_dir)

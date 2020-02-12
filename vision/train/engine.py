@@ -11,7 +11,9 @@ from .coco_eval import CocoEvaluator
 from .train_utils import SmoothedValue, MetricLogger, warmup_lr_scheduler, reduce_dict
 
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
+def train_one_epoch(
+    model, optimizer, data_loader, device, epoch, print_freq, max_loss=100
+):
     model.train()
     metric_logger = MetricLogger(delimiter="  ")
     metric_logger.add_meter("lr", SmoothedValue(window_size=1, fmt="{value:.6f}"))
@@ -38,7 +40,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq):
 
         loss_value = losses_reduced.item()
 
-        if not math.isfinite(loss_value):
+        if loss_value > max_loss:
             print("Loss is {}, stopping training".format(loss_value))
             print(loss_dict_reduced)
             raise RuntimeError("Loss is {}, stopping training".format(loss_value))

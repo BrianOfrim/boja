@@ -161,14 +161,20 @@ def main(args):
             )
         )
 
-        model_state, metrics = train.train_model(
-            model,
-            dataset,
-            dataset_test,
-            lr_scheduler,
-            optimizer,
-            num_epochs=args.num_epochs,
-        )
+        try:
+            model_state, metrics = train.train_model(
+                model,
+                dataset,
+                dataset_test,
+                lr_scheduler,
+                optimizer,
+                num_epochs=args.num_epochs,
+            )
+        except RuntimeError as err:
+            log_file.write("Training failed:")
+            log_file.write("Error: %s" % err)
+            print(err)
+            continue
 
         log_file.write(
             "[%i]%s: %s\n"

@@ -148,6 +148,8 @@ def train_model(model, dataset, dataset_test, lr_scheduler, optimizer, num_epoch
         eval_data = evaluate(model, data_loader_test, device=device)
 
         stats = eval_data.coco_eval["bbox"].stats
+        print("Epoch: %d, AP: %f" % (epoch, stats[AVERAGE_PRECISION_STAT_INDEX]))
+        print("Epoch: %d, AR: %f" % (epoch, stats[AVERAGE_RECALL_STAT_INDEX]))
         evaluation_metrics[AVERAGE_PRECISION_STAT_LABEL].append(
             stats[AVERAGE_PRECISION_STAT_INDEX]
         )

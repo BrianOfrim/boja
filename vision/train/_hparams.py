@@ -77,6 +77,15 @@ class RandomUniform(Random):
         return np.random.uniform(self.min_val, self.max_val)
 
 
+class RandomInt(Random):
+    def __init__(self, min_val: int = 0.0, max_val: int = 2.0):
+        self.min_val = min_val
+        self.max_val = max_val
+
+    def get_next(self):
+        return np.random.randint(self.min_val, self.max_val + 1)
+
+
 class RandomNormal(Random):
     def __init__(
         self,

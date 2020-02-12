@@ -89,7 +89,7 @@ def main(args):
             _hparams.Optimizer(
                 name="SGD",
                 options={
-                    "lr": _hparams.RandomUniform(min_val=0.001, max_val=0.01),
+                    "lr": _hparams.RandomUniform(min_val=0.001, max_val=0.1),
                     "momentum": _hparams.RandomNormal(
                         mean=0.5, std=0.2, min_val=0.0, max_val=0.95
                     ),
@@ -100,7 +100,17 @@ def main(args):
             ),
             _hparams.Optimizer(
                 name="Adam",
-                options={"lr": _hparams.RandomUniform(min_val=0.005, max_val=0.05),},
+                options={"lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),},
+            ),
+            _hparams.Optimizer(
+                name="RMSprop",
+                options={
+                    "lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),
+                    "momentum": _hparams.RandomUniform(min_val=0.1, max_val=0.95),
+                    "weight_decay": _hparams.RandomUniform(
+                        min_val=0.0001, max_val=0.001
+                    ),
+                },
             ),
         ]
     )
@@ -110,10 +120,10 @@ def main(args):
             _hparams.LRScheduler(
                 name="StepLR",
                 options={
-                    "step_size": _hparams.RandomUniform(2, 4),
-                    "gamma": _hparams.RandomUniform(0.05, 0.3),
+                    "step_size": _hparams.RandomInt(1, 3),
+                    "gamma": _hparams.RandomUniform(0.1, 0.3),
                 },
-            )
+            ),
         ]
     )
 

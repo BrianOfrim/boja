@@ -140,6 +140,8 @@ def main(args):
         "w",
     )
 
+    batch_size = 1 if torch.cuda.device_count() == 0 else 2 * torch.cuda.device_count()
+
     stat_totals = {AVERAGE_PRECISION_STAT_LABEL: {}, AVERAGE_RECALL_STAT_LABEL: {}}
 
     for i in range(args.num_trials):
@@ -184,6 +186,8 @@ def main(args):
                 lr_scheduler,
                 optimizer,
                 num_epochs=args.num_epochs,
+                batch_size=batch_size,
+                num_workers=args.num_data_workers,
             )
         except RuntimeError as err:
             log_and_print(log_file, i, "Training failed: %s" % err)
@@ -281,6 +285,9 @@ if __name__ == "__main__":
         default=NETWORKS[0],
         help="The neural network to use for object detection",
     )
+
+    parser.add_argument("--num_data_workers", type=int, default=1)
+
     parser.add_argument(
         "--num_epochs", type=int, default=10,
     )

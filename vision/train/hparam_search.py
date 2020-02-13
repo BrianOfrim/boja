@@ -104,20 +104,20 @@ def main(args):
                     ),
                 },
             ),
-            _hparams.Optimizer(
-                name="Adam",
-                options={"lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),},
-            ),
-            _hparams.Optimizer(
-                name="RMSprop",
-                options={
-                    "lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),
-                    "momentum": _hparams.RandomUniform(min_val=0.1, max_val=0.95),
-                    "weight_decay": _hparams.RandomUniform(
-                        min_val=0.0001, max_val=0.001
-                    ),
-                },
-            ),
+            # _hparams.Optimizer(
+            #     name="Adam",
+            #     options={"lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),},
+            # ),
+            # _hparams.Optimizer(
+            #     name="RMSprop",
+            #     options={
+            #         "lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),
+            #         "momentum": _hparams.RandomUniform(min_val=0.1, max_val=0.95),
+            #         "weight_decay": _hparams.RandomUniform(
+            #             min_val=0.0001, max_val=0.001
+            #         ),
+            #     },
+            # ),
         ]
     )
 
@@ -188,6 +188,9 @@ def main(args):
         except RuntimeError as err:
             log_and_print(log_file, i, "Training failed: %s" % err)
             continue
+        except KeyboardInterrupt:
+            log_and_print(log_file, i, "User initiated termination.")
+            break
 
         log_and_print(
             log_file,

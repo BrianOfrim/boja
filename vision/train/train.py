@@ -200,7 +200,7 @@ def plot_metrics(run_name, metrics):
     plt.savefig(log_file_path)
 
     print("Log file saved at: %s" % log_file_path)
-    return log_file_name
+    return log_file_path
 
 
 def sync_s3(args):
@@ -299,9 +299,9 @@ def main(args):
     # Save the model state to a file
     torch.save(model_state, model_state_file_path)
 
-    log_file_path = plot_metrics(run_name, metrics)
-
     print("Model state saved at: %s" % model_state_file_path)
+
+    log_file_path = plot_metrics(run_name, metrics)
 
     if use_s3:
         # Send the saved model and logs to S3

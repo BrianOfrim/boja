@@ -99,6 +99,15 @@ class RandomNormal(Random):
         return val
 
 
+class RandomExponential(Random):
+    def __init__(self, min_exp: float = 0.0, max_exp: float = 1.0):
+        self.min_exp = min_exp
+        self.max_exp = max_exp
+
+    def get_next(self):
+        return 10 ** np.random.uniform(self.min_exp, self.max_exp)
+
+
 class RandomHPChoices(Random):
     def __init__(self, choices: List[HyperParameter]):
         self.choices = choices

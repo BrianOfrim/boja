@@ -94,42 +94,26 @@ def main(args):
         [
             _hparams.Optimizer(
                 name="SGD",
-                options={
-                    "lr": _hparams.RandomUniform(min_val=0.001, max_val=0.1),
-                    "momentum": _hparams.RandomNormal(
-                        mean=0.5, std=0.2, min_val=0.0, max_val=0.95
-                    ),
-                    "weight_decay": _hparams.RandomUniform(
-                        min_val=0.0001, max_val=0.001
-                    ),
-                },
+                options={"lr": _hparams.RandomExponential(min_val=0.001, max_val=0.1),},
             ),
-            # _hparams.Optimizer(
-            #     name="Adam",
-            #     options={"lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),},
-            # ),
-            # _hparams.Optimizer(
-            #     name="RMSprop",
-            #     options={
-            #         "lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),
-            #         "momentum": _hparams.RandomUniform(min_val=0.1, max_val=0.95),
-            #         "weight_decay": _hparams.RandomUniform(
-            #             min_val=0.0001, max_val=0.001
-            #         ),
-            #     },
-            # ),
+            _hparams.Optimizer(name="Adam"),
+            _hparams.Optimizer(
+                name="RMSprop",
+                options={"lr": _hparams.RandomExponential(min_val=0.001, max_val=0.1),},
+            ),
         ]
     )
 
     lr_scheduler_choices = _hparams.RandomHPChoices(
         [
-            _hparams.LRScheduler(
-                name="StepLR",
-                options={
-                    "step_size": _hparams.RandomInt(1, 3),
-                    "gamma": _hparams.RandomUniform(0.1, 0.3),
-                },
-            ),
+            None,
+            # _hparams.LRScheduler(
+            #     name="StepLR",
+            #     options={
+            #         "step_size": _hparams.RandomInt(1, 3),
+            #         "gamma": _hparams.RandomUniform(0.1, 0.3),
+            #     },
+            # ),
         ]
     )
 
@@ -162,29 +146,32 @@ def main(args):
         log_and_print(log_file, i, "optimizer choice: %s" % optimizer_choice.name)
         log_and_print(log_file, i, "optimizer properties: %s" % optimizer.defaults)
 
+        lr_scheduler = None
         lr_scheduler_choice = lr_scheduler_choices.get_next()
-        lr_scheduler_choice.set_optimizer(optimizer)
-        lr_scheduler = lr_scheduler_choice.get_next()
-
-        log_and_print(log_file, i, "LR Scheduler choice: %s" % lr_scheduler_choice.name)
-        log_and_print(
-            log_file,
-            i,
-            "LR Scheduler properties: %s"
-            % {
-                key: value
-                for key, value in lr_scheduler.__dict__.items()
-                if key != "optimizer"
-            },
-        )
+        if lr_scheduler_choice is not None:
+            lr_scheduler_choice.set_optimizer(optimizer)
+            lr_scheduler = lr_scheduler_choice.get_next()
+            log_and_print(
+                log_file, i, "LR Scheduler choice: %s" % lr_scheduler_choice.name
+            )
+            log_and_print(
+                log_file,
+                i,
+                "LR Scheduler properties: %s"
+                % {
+                    key: value
+                    for key, value in lr_scheduler.__dict__.items()
+                    if key != "optimizer"
+                },
+            )
 
         try:
             model_state, metrics = train.train_model(
                 model,
                 dataset,
                 dataset_test,
-                lr_scheduler,
                 optimizer,
+                lr_scheduler,
                 num_epochs=args.num_epochs,
                 batch_size=batch_size,
                 num_workers=args.num_data_workers,
@@ -301,4 +288,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
-

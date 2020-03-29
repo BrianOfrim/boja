@@ -1,5 +1,6 @@
-from typing import List
+import math
 import random
+from typing import List
 
 import numpy as np
 import torch
@@ -25,7 +26,7 @@ class HyperParameter:
 
 
 class Optimizer(HyperParameter):
-    def __init__(self, name: str, options):
+    def __init__(self, name: str, options={}):
         if name not in torch.optim.__dict__:
             raise ValueError(
                 "Invalid optimizer name %s, must be defined in torch.optim" % name
@@ -43,7 +44,7 @@ class Optimizer(HyperParameter):
 
 
 class LRScheduler(HyperParameter):
-    def __init__(self, name, options):
+    def __init__(self, name, options={}):
         if name not in torch.optim.lr_scheduler.__dict__:
             raise ValueError(
                 "Invalid learning rate scheduler name %s, must be defined in torch.optim.lr_schedule"
@@ -109,9 +110,9 @@ class RandomNormal(Random):
 
 
 class RandomExponential(Random):
-    def __init__(self, min_exp: float = 0.0, max_exp: float = 1.0):
-        self.min_exp = min_exp
-        self.max_exp = max_exp
+    def __init__(self, min_val: float = 0.0, max_val: float = 1.0):
+        self.min_exp = math.log(min_val, 10)
+        self.max_exp = math.log(max_val, 10)
 
     def get_next(self):
         return 10 ** np.random.uniform(self.min_exp, self.max_exp)

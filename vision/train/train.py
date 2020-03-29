@@ -119,8 +119,8 @@ def train_model(
     model,
     dataset,
     dataset_test,
-    lr_scheduler,
     optimizer,
+    lr_scheduler=None,
     num_epochs=10,
     batch_size=1,
     num_workers=1,
@@ -163,8 +163,10 @@ def train_model(
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
         train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
-        # update the learning rate
-        lr_scheduler.step()
+
+        if lr_scheduler is not None:
+            # update the learning rate
+            lr_scheduler.step()
         # evaluate on the test dataset
         eval_data = evaluate(model, data_loader_test, device=device)
 
@@ -268,8 +270,8 @@ def main(args):
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
     # and a learning rate scheduler
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
-
+    # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
+    lr_scheduler = None
     batch_size = 1 if torch.cuda.device_count() == 0 else 2 * torch.cuda.device_count()
 
     try:
@@ -277,8 +279,8 @@ def main(args):
             model,
             dataset,
             dataset_test,
-            lr_scheduler,
             optimizer,
+            lr_scheduler,
             num_epochs=args.num_epochs,
             batch_size=batch_size,
             num_workers=args.num_data_workers,
@@ -355,4 +357,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
-

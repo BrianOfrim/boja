@@ -3,6 +3,7 @@
 
 import os
 import time
+import sys
 from typing import List
 import re
 
@@ -114,7 +115,16 @@ def get_labels(label_file_path):
     return labels
 
 
-def train_model(model, dataset, dataset_test, lr_scheduler, optimizer, num_epochs=10):
+def train_model(
+    model,
+    dataset,
+    dataset_test,
+    lr_scheduler,
+    optimizer,
+    num_epochs=10,
+    batch_size=1,
+    num_workers=1,
+):
     # train on the GPU or on the CPU, if a GPU is not available
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -122,13 +132,24 @@ def train_model(model, dataset, dataset_test, lr_scheduler, optimizer, num_epoch
 
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, shuffle=True, num_workers=1, collate_fn=collate_fn
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        collate_fn=collate_fn,
     )
 
     data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, shuffle=False, num_workers=1, collate_fn=collate_fn,
+        dataset_test,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        collate_fn=collate_fn,
     )
 
+    if torch.cuda.device_count() > 1:
+        print("Using ", torch.cuda.device_count(), " GPUs")
+        model = torch.nn.DataParallel(model)
     # move model to the right device
     model.to(device)
 
@@ -148,6 +169,8 @@ def train_model(model, dataset, dataset_test, lr_scheduler, optimizer, num_epoch
         eval_data = evaluate(model, data_loader_test, device=device)
 
         stats = eval_data.coco_eval["bbox"].stats
+        print("Epoch: %d, AP: %f" % (epoch, stats[AVERAGE_PRECISION_STAT_INDEX]))
+        print("Epoch: %d, AR: %f" % (epoch, stats[AVERAGE_RECALL_STAT_INDEX]))
         evaluation_metrics[AVERAGE_PRECISION_STAT_LABEL].append(
             stats[AVERAGE_PRECISION_STAT_INDEX]
         )
@@ -177,7 +200,7 @@ def plot_metrics(run_name, metrics):
     plt.savefig(log_file_path)
 
     print("Log file saved at: %s" % log_file_path)
-    return log_file_name
+    return log_file_path
 
 
 def sync_s3(args):
@@ -247,14 +270,22 @@ def main(args):
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
-    model_state, metrics = train_model(
-        model,
-        dataset,
-        dataset_test,
-        lr_scheduler,
-        optimizer,
-        num_epochs=args.num_epochs,
-    )
+    batch_size = 1 if torch.cuda.device_count() == 0 else 2 * torch.cuda.device_count()
+
+    try:
+        model_state, metrics = train_model(
+            model,
+            dataset,
+            dataset_test,
+            lr_scheduler,
+            optimizer,
+            num_epochs=args.num_epochs,
+            batch_size=batch_size,
+            num_workers=args.num_data_workers,
+        )
+    except RuntimeError as err:
+        print("Error: %s" % err)
+        sys.exit(1)
 
     model_state_local_dir = os.path.join(args.local_data_dir, MODEL_STATE_DIR_NAME)
     # Create model state directory if it does not exist yet
@@ -268,9 +299,9 @@ def main(args):
     # Save the model state to a file
     torch.save(model_state, model_state_file_path)
 
-    log_file_path = plot_metrics(run_name, metrics)
-
     print("Model state saved at: %s" % model_state_file_path)
+
+    log_file_path = plot_metrics(run_name, metrics)
 
     if use_s3:
         # Send the saved model and logs to S3
@@ -314,6 +345,9 @@ if __name__ == "__main__":
         default=NETWORKS[0],
         help="The neural network to use for object detection",
     )
+
+    parser.add_argument("--num_data_workers", type=int, default=1)
+
     parser.add_argument(
         "--num_epochs", type=int, default=10,
     )

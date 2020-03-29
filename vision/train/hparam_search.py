@@ -50,6 +50,12 @@ def get_newest_manifest_path(manifest_dir_path: str) -> str:
     return get_highest_numbered_file(manifest_dir_path, MANIFEST_FILE_TYPE)
 
 
+def log_and_print(log_file, trial_num, message):
+    message = "Trial [%d]: %s" % (trial_num, message)
+    print(message)
+    log_file.write("%s\n" % message)
+
+
 def main(args):
 
     start_time = int(time.time())
@@ -89,19 +95,29 @@ def main(args):
             _hparams.Optimizer(
                 name="SGD",
                 options={
-                    "lr": _hparams.RandomUniform(min_val=0.001, max_val=0.01),
+                    "lr": _hparams.RandomUniform(min_val=0.001, max_val=0.1),
                     "momentum": _hparams.RandomNormal(
-                        mean=0.5, std=0.25, min_val=0.0, max_val=1.0
+                        mean=0.5, std=0.2, min_val=0.0, max_val=0.95
                     ),
                     "weight_decay": _hparams.RandomUniform(
                         min_val=0.0001, max_val=0.001
                     ),
                 },
             ),
-            _hparams.Optimizer(
-                name="Adam",
-                options={"lr": _hparams.RandomUniform(min_val=0.001, max_val=0.01),},
-            ),
+            # _hparams.Optimizer(
+            #     name="Adam",
+            #     options={"lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),},
+            # ),
+            # _hparams.Optimizer(
+            #     name="RMSprop",
+            #     options={
+            #         "lr": _hparams.RandomUniform(min_val=0.005, max_val=0.1),
+            #         "momentum": _hparams.RandomUniform(min_val=0.1, max_val=0.95),
+            #         "weight_decay": _hparams.RandomUniform(
+            #             min_val=0.0001, max_val=0.001
+            #         ),
+            #     },
+            # ),
         ]
     )
 
@@ -110,10 +126,10 @@ def main(args):
             _hparams.LRScheduler(
                 name="StepLR",
                 options={
-                    "step_size": _hparams.RandomUniform(1, 4),
-                    "gamma": _hparams.RandomUniform(0.05, 0.3),
+                    "step_size": _hparams.RandomInt(1, 3),
+                    "gamma": _hparams.RandomUniform(0.1, 0.3),
                 },
-            )
+            ),
         ]
     )
 
@@ -124,16 +140,18 @@ def main(args):
         "w",
     )
 
+    batch_size = 1 if torch.cuda.device_count() == 0 else 2 * torch.cuda.device_count()
+
     stat_totals = {AVERAGE_PRECISION_STAT_LABEL: {}, AVERAGE_RECALL_STAT_LABEL: {}}
 
     for i in range(args.num_trials):
 
         run_time = int(time.time())
 
-        log_file.write("[%i]Run:%d, start time:%d\n" % (i, i, run_time))
+        log_and_print(log_file, i, "start time:%d" % run_time)
         # get the model using our helper function
         model = _models.__dict__[args.network](num_classes)
-        log_file.write("[%i]Model: %s\n" % (i, args.network))
+        log_and_print(log_file, i, "Model = %s" % args.network)
 
         # construct an optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -141,42 +159,54 @@ def main(args):
         optimizer_choice = optimizer_choices.get_next()
         optimizer_choice.set_params(params)
         optimizer = optimizer_choice.get_next()
-        log_file.write("[%i]Optimizer choice: %s\n" % (i, optimizer_choice.name))
-        log_file.write("[%i]Optimizer properties: %s\n" % (i, optimizer.defaults))
+        log_and_print(log_file, i, "optimizer choice: %s" % optimizer_choice.name)
+        log_and_print(log_file, i, "optimizer properties: %s" % optimizer.defaults)
 
         lr_scheduler_choice = lr_scheduler_choices.get_next()
         lr_scheduler_choice.set_optimizer(optimizer)
         lr_scheduler = lr_scheduler_choice.get_next()
 
-        log_file.write("[%i]LR Scheduler choice: %s\n" % (i, lr_scheduler_choice.name))
-        log_file.write(
-            "[%i]LR Scheduler properties: %s\n"
-            % (
-                i,
-                {
-                    key: value
-                    for key, value in lr_scheduler.__dict__.items()
-                    if key != "optimizer"
-                },
+        log_and_print(log_file, i, "LR Scheduler choice: %s" % lr_scheduler_choice.name)
+        log_and_print(
+            log_file,
+            i,
+            "LR Scheduler properties: %s"
+            % {
+                key: value
+                for key, value in lr_scheduler.__dict__.items()
+                if key != "optimizer"
+            },
+        )
+
+        try:
+            model_state, metrics = train.train_model(
+                model,
+                dataset,
+                dataset_test,
+                lr_scheduler,
+                optimizer,
+                num_epochs=args.num_epochs,
+                batch_size=batch_size,
+                num_workers=args.num_data_workers,
             )
+        except RuntimeError as err:
+            log_and_print(log_file, i, "Training failed: %s" % err)
+            continue
+        except KeyboardInterrupt:
+            log_and_print(log_file, i, "User initiated termination.")
+            break
+
+        log_and_print(
+            log_file,
+            i,
+            "%s: %s"
+            % (AVERAGE_PRECISION_STAT_LABEL, metrics[AVERAGE_PRECISION_STAT_LABEL]),
         )
 
-        model_state, metrics = train.train_model(
-            model,
-            dataset,
-            dataset_test,
-            lr_scheduler,
-            optimizer,
-            num_epochs=args.num_epochs,
-        )
-
-        log_file.write(
-            "[%i]%s: %s\n"
-            % (i, AVERAGE_PRECISION_STAT_LABEL, metrics[AVERAGE_PRECISION_STAT_LABEL])
-        )
-        log_file.write(
-            "[%i]%s: %s\n"
-            % (i, AVERAGE_RECALL_STAT_LABEL, metrics[AVERAGE_RECALL_STAT_LABEL])
+        log_and_print(
+            log_file,
+            i,
+            "%s: %s" % (AVERAGE_RECALL_STAT_LABEL, metrics[AVERAGE_RECALL_STAT_LABEL]),
         )
 
         stat_totals[AVERAGE_PRECISION_STAT_LABEL][i] = metrics[
@@ -184,7 +214,7 @@ def main(args):
         ]
         stat_totals[AVERAGE_RECALL_STAT_LABEL][i] = metrics[AVERAGE_RECALL_STAT_LABEL]
 
-    print("Training complete")
+    print("Training session complete")
 
     log_image_local_dir = os.path.join(args.local_data_dir, LOGS_DIR_NAME)
     create_output_dir(log_image_local_dir)
@@ -255,6 +285,9 @@ if __name__ == "__main__":
         default=NETWORKS[0],
         help="The neural network to use for object detection",
     )
+
+    parser.add_argument("--num_data_workers", type=int, default=1)
+
     parser.add_argument(
         "--num_epochs", type=int, default=10,
     )

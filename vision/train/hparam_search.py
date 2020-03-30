@@ -96,28 +96,26 @@ def main(args):
                 name="SGD",
                 options={
                     "lr": _hparams.RandomExponential(min_val=0.0005, max_val=0.1),
-                    "momentum": _hparams.RandomHPChoices([0, 0.8, 0.9, 0.95]),
-                    "weight_decay": _hparams.RandomHPChoices([0, 1e-4]),
+                    "momentum": _hparams.RandomHPChoices(
+                        [0, _hparams.RandomExponentialDiff(1.0, 0.01, 0.5)]
+                    ),
+                    "weight_decay": _hparams.RandomHPChoices([0, 1e-2, 1e-4]),
                 },
             ),
             _hparams.Optimizer(
                 name="Adam",
                 options={
                     "lr": _hparams.RandomExponential(min_val=0.0005, max_val=0.1),
-                    "weight_decay": _hparams.RandomHPChoices([0, 1e-4]),
+                    "weight_decay": _hparams.RandomHPChoices([0, 1e-2, 1e-4]),
                 },
             ),
             _hparams.Optimizer(
                 name="AdamW",
                 options={
                     "lr": _hparams.RandomExponential(min_val=0.0005, max_val=0.1),
-                    "weight_decay": _hparams.RandomHPChoices([1e-2, 1e-4]),
+                    "weight_decay": _hparams.RandomHPChoices([0, 1e-2, 1e-4]),
                 },
             ),
-            # _hparams.Optimizer(
-            #     name="RMSprop",
-            #     options={"lr": _hparams.RandomExponential(min_val=0.001, max_val=0.1),},
-            # ),
         ]
     )
 

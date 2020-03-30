@@ -162,7 +162,15 @@ def train_model(
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
+        train_one_epoch(
+            model,
+            optimizer,
+            data_loader,
+            device,
+            epoch,
+            # warmup_lr=(type(optimizer).__name__ == "SGD"),
+            print_freq=10,
+        )
 
         if lr_scheduler is not None:
             # update the learning rate

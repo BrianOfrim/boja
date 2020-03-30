@@ -12,7 +12,14 @@ from .train_utils import SmoothedValue, MetricLogger, warmup_lr_scheduler, reduc
 
 
 def train_one_epoch(
-    model, optimizer, data_loader, device, epoch, print_freq, max_loss=100
+    model,
+    optimizer,
+    data_loader,
+    device,
+    epoch,
+    print_freq,
+    warmup_lr=False,
+    max_loss=100,
 ):
     model.train()
     metric_logger = MetricLogger(delimiter="  ")
@@ -20,7 +27,7 @@ def train_one_epoch(
     header = "Epoch: [{}]".format(epoch)
 
     lr_scheduler = None
-    if epoch == 0:
+    if epoch == 0 and warmup_lr:
         warmup_factor = 1.0 / 1000
         warmup_iters = min(1000, len(data_loader) - 1)
 
@@ -40,7 +47,7 @@ def train_one_epoch(
 
         loss_value = losses_reduced.item()
 
-        if loss_value > max_loss:
+        if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))
             print(loss_dict_reduced)
             raise RuntimeError("Loss is {}, stopping training".format(loss_value))

@@ -118,9 +118,24 @@ class RandomExponential(Random):
         return 10 ** np.random.uniform(self.min_exp, self.max_exp)
 
 
+class RandomExponentialDiff(Random):
+    def __init__(
+        self, base_val: float = 1.0, min_val: float = 0.01, max_val: float = 0.1
+    ):
+        self.base_val = base_val
+        self.min_exp = math.log(min_val, 10)
+        self.max_exp = math.log(max_val, 10)
+
+    def get_next(self):
+        return self.base_val - (10 ** np.random.uniform(self.min_exp, self.max_exp))
+
+
 class RandomHPChoices(Random):
     def __init__(self, choices: List[HyperParameter]):
         self.choices = choices
 
     def get_next(self):
-        return random.choice(self.choices)
+        choice = random.choice(self.choices)
+        if isinstance(choice, Random):
+            choice = choice.get_next()
+        return choice

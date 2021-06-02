@@ -22,7 +22,7 @@ pyparsing==2.4.6          # via matplotlib
 python-dateutil==2.8.1    # via botocore, matplotlib
 s3transfer==0.3.1         # via boto3
 six==1.14.0               # via absl-py, cycler, python-dateutil
-urllib3==1.25.7           # via botocore
+urllib3==1.26.5           # via botocore
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
